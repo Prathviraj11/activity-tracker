@@ -1,0 +1,1976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Activity Tracker</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            m3: {
+              primary: '#6750A4',
+              onPrimary: '#FFFFFF',
+              primaryContainer: '#EADDFF',
+              onPrimaryContainer: '#21005D',
+              surface: '#FEF7FF',
+              surfaceVariant: '#E7E0EC',
+              onSurface: '#1D1B20',
+              onSurfaceVariant: '#49454F',
+              outline: '#79747E',
+              surfaceContainer: '#F3EDF7',
+              surfaceContainerHigh: '#ECE6F0',
+              secondary: '#625B71',
+              secondaryContainer: '#E8DEF8',
+              tertiary: '#7D5260',
+              tertiaryContainer: '#FFD8E4',
+            }
+          },
+          boxShadow: {
+            'm3-1': '0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30)',
+            'm3-2': '0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30)',
+            'm3-3': '0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.30)',
+            'm3-fab': '0px 6px 10px 4px rgba(0, 0, 0, 0.15), 0px 2px 3px 0px rgba(0, 0, 0, 0.30)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    /* Android ripple and smooth scroll */
+    .ripple {
+      position: relative;
+      overflow: hidden;
+    }
+    .ripple:after {
+      content: "";
+      display: block;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle, #000 10%, transparent 10.01%);
+      background-repeat: no-repeat;
+      background-position: 50%;
+      transform: scale(10, 10);
+      opacity: 0;
+      transition: transform .4s, opacity .6s;
+    }
+    .ripple:active:after {
+      transform: scale(0, 0);
+      opacity: .15;
+      transition: 0s;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #D0BCFF;
+      border-radius: 9999px;
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .animate-slide-up {
+      animation: slideUp 0.28s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.2s ease-out forwards;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Activity Tracker">
+  <meta name="theme-color" content="#6750A4">
+</head>
+<body class="bg-slate-900 text-slate-800 min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+  <!-- Mobile Frame Mockup Container -->
+  <div class="w-full max-w-md h-screen sm:h-[870px] bg-[#FAF8FD] dark:bg-[#141218] dark:text-[#E6E0E9] sm:rounded-[44px] shadow-2xl flex flex-col overflow-hidden relative border-0 sm:border-[8px] sm:border-slate-800">
+    
+    <!-- Android Status Bar -->
+    <div class="h-10 px-6 pt-2 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 z-20 shrink-0">
+      <span id="statusBarTime" class="tracking-tight">10:30</span>
+      <div class="w-3.5 h-3.5 bg-black rounded-full mx-auto hidden sm:block border-2 border-slate-800"></div>
+      <div class="flex items-center space-x-1.5">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z"/></svg>
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4z"/></svg>
+        <svg class="w-4 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17 4h-3V2h-4v2H7v18h10V4z"/></svg>
+      </div>
+    </div>
+
+    <!-- App Top Bar -->
+    <header class="px-5 pt-1 pb-3 flex items-center justify-between z-10 shrink-0">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-md">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-none">Activity Tracker</h1>
+            <span id="adminActiveBadge" class="hidden text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 font-bold px-2 py-0.5 rounded-full">🛡️ Admin</span>
+          </div>
+          <p id="topSubtext" class="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Activities & Habits</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-1.5">
+        <button id="pwaInstallBtn" title="Install App to Home Screen" class="hidden text-xs bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-bold px-2.5 py-1.5 rounded-full border border-purple-200 dark:border-purple-800 flex items-center gap-1 transition">
+          <span>📲</span><span class="hidden sm:inline">Install</span>
+        </button>
+        <button id="adminLoginToggleBtn" title="Admin Login" class="w-9 h-9 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </button>
+        <button id="themeToggleBtn" aria-label="Toggle theme" class="w-9 h-9 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition">
+          <svg id="themeIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+        <button id="openCloudSyncBtn" title="Cloud Sync Settings" class="w-9 h-9 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+        </button>
+        <button id="openNewProfileHeaderBtn" class="text-xs bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-semibold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          <span>Profile</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Interactive Views Wrapper -->
+    <main class="flex-1 overflow-y-auto px-4 pb-24 hide-scrollbar relative">
+      
+      <!-- TAB 1: ACTIVITY FEED & SEARCH (MAIN) -->
+      <section id="viewFeed" class="space-y-4">
+        
+        <!-- Profile Selector Dropdown -->
+        <div class="bg-white dark:bg-[#1E1B24] p-3 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800/80">
+          <!-- Selected Profile Dropdown Selector -->
+          <div class="relative w-full">
+            <div id="selectedProfileDisplay" class="flex items-center gap-3 p-1.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+              <!-- Selected Profile Avatar -->
+              <div id="selectedProfileAvatar" class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+                All
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5">
+                  <span id="selectedProfileName" class="text-sm font-bold text-slate-900 dark:text-white truncate">Everyone</span>
+                  <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M19 9l-7 7-7-7"/></svg>
+                </div>
+                <p id="selectedProfileSub" class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Tap to switch profile</p>
+              </div>
+            </div>
+            <!-- Native touch dropdown overlay -->
+            <select id="profileDropdownSelect" aria-label="Select active profile" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+              <!-- Dynamically populated options -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Unified Search & Filter Card -->
+        <div class="bg-white dark:bg-[#1E1B24] p-3.5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800/80 space-y-3">
+          <!-- Search input -->
+          <div class="relative flex items-center">
+            <svg class="w-4 h-4 absolute left-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Search activity, hobby, book..." class="w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs sm:text-sm font-medium border border-transparent focus:border-purple-500 focus:bg-white dark:focus:bg-slate-950 focus:outline-none transition">
+            <button id="clearSearchBtn" aria-label="Clear search" class="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hidden">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          <!-- Date Filters -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 hide-scrollbar text-[11px] font-semibold">
+            <button data-date-filter="all" class="date-chip active-chip px-3 py-1.5 rounded-full bg-purple-600 text-white shadow-xs shrink-0 transition">All Dates</button>
+            <button data-date-filter="today" class="date-chip px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 shrink-0 transition">Today</button>
+            <button data-date-filter="yesterday" class="date-chip px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 shrink-0 transition">Yesterday</button>
+            <button data-date-filter="this-week" class="date-chip px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 shrink-0 transition">This Week</button>
+            <div class="relative shrink-0">
+              <input type="date" id="customDateFilterInput" class="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10">
+              <button id="customDateBtn" class="date-chip px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 flex items-center gap-1 transition">
+                <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span id="customDateLabel">Custom Date</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Status Bar -->
+        <div class="flex items-center justify-between px-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+          <div class="flex items-center gap-1.5">
+            <span id="activityCountLabel">Showing 6 activities</span>
+            <span id="filteredBadge" class="hidden text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 px-1.5 py-0.2 rounded-full font-bold">Filtered</span>
+          </div>
+          <button id="resetAllFiltersBtn" class="text-purple-600 dark:text-purple-400 hover:underline text-[11px] font-semibold hidden">Reset Filters</button>
+        </div>
+
+        <!-- Activity Feed List -->
+        <div id="activitiesList" class="space-y-3">
+          <!-- Dynamically populated cards -->
+        </div>
+
+        <!-- Empty state placeholder -->
+        <div id="emptyActivitiesState" class="hidden py-12 px-4 text-center">
+          <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-500 flex items-center justify-center">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            </svg>
+          </div>
+          <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">No activities found</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">Try clearing your search query or date filter, or tap the button below to log a new relaxation activity.</p>
+          <button id="emptyAddActivityBtn" class="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full text-xs font-semibold shadow-sm transition">
+            + Log Activity
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 2: PROFILES MANAGER -->
+      <section id="viewProfiles" class="space-y-4 hidden">
+        <div class="bg-white dark:bg-[#1E1B24] p-4 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800/80">
+          <div class="mb-3">
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white">Household & Friends</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Manage profiles and active accounts</p>
+          </div>
+          <div id="fullProfilesList" class="space-y-2.5">
+            <!-- Dynamically populated profiles list -->
+          </div>
+        </div>
+
+        <!-- Relaxation Goals Summary Card -->
+        <div class="bg-gradient-to-br from-purple-900 to-indigo-900 text-white p-5 rounded-3xl shadow-lg relative overflow-hidden">
+          <div class="absolute -right-4 -bottom-4 w-32 h-32 bg-purple-500/20 rounded-full blur-xl"></div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs uppercase font-bold tracking-wider text-purple-200">Weekly Activity Pace</span>
+            <span id="weeklyPaceBadge" class="text-xs bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">Balanced</span>
+          </div>
+          <div class="flex items-end justify-between">
+            <div>
+              <div id="totalHours" class="text-3xl font-extrabold tracking-tight">18.5 hrs</div>
+              <p class="text-xs text-purple-200/80 mt-1">Logged across all hobbies</p>
+            </div>
+            <div class="text-right">
+              <div id="topCategoryName" class="text-sm font-bold text-purple-100">Reading</div>
+              <p class="text-[11px] text-purple-300">Top hobby</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: INSIGHTS & LEISURE STATS -->
+      <section id="viewStats" class="space-y-4 hidden">
+        <div class="bg-white dark:bg-[#1E1B24] p-4 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800/80">
+          <h2 class="text-sm font-bold text-slate-900 dark:text-white mb-1">Category Breakdown</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">How downtime is spent across categories</p>
+          <div id="categoryStatsContainer" class="space-y-3">
+            <!-- Dynamically calculated progress bars -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Floating Action Button (FAB) -->
+    <button id="fabAddActivityBtn" aria-label="Add activity" class="absolute right-5 bottom-20 w-14 h-14 bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 text-white rounded-2xl shadow-m3-fab flex items-center justify-center transition-all z-20">
+      <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+      </svg>
+    </button>
+
+    <!-- Android Bottom Navigation Bar -->
+    <nav class="h-16 bg-white/95 dark:bg-[#1E1B24]/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 px-6 flex items-center justify-around z-10 shrink-0">
+      <button data-nav="feed" class="nav-item flex flex-col items-center text-purple-600 dark:text-purple-400 py-1 transition">
+        <div class="w-12 h-7 rounded-full bg-purple-100 dark:bg-purple-950/60 flex items-center justify-center mb-0.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        </div>
+        <span class="text-[10px] font-bold">Activities</span>
+      </button>
+      <button data-nav="profiles" class="nav-item flex flex-col items-center text-slate-400 dark:text-slate-500 hover:text-purple-600 py-1 transition">
+        <div class="w-12 h-7 rounded-full flex items-center justify-center mb-0.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        </div>
+        <span class="text-[10px] font-medium">Profiles</span>
+      </button>
+      <button data-nav="stats" class="nav-item flex flex-col items-center text-slate-400 dark:text-slate-500 hover:text-purple-600 py-1 transition">
+        <div class="w-12 h-7 rounded-full flex items-center justify-center mb-0.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <span class="text-[10px] font-medium">Insights</span>
+      </button>
+    </nav>
+
+    <!-- MODAL / BOTTOM SHEET: ADD ACTIVITY -->
+    <div id="addActivityModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-end justify-center hidden animate-fade-in">
+      <div class="w-full max-w-md bg-white dark:bg-[#1E1B24] rounded-t-[36px] shadow-2xl p-5 max-h-[90vh] overflow-y-auto animate-slide-up border-t border-slate-100 dark:border-slate-800">
+        <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-4"></div>
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 id="activityModalTitle" class="text-base font-bold text-slate-900 dark:text-white">Log Activity</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Record new activity details</p>
+          </div>
+          <button id="closeAddActivityModalBtn" aria-label="Close modal" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <form id="activityForm" class="space-y-3.5">
+          <!-- Select Profile -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">For Profile</label>
+            <div id="formProfilePicker" class="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+              <!-- Dynamically populated profiles for selection -->
+            </div>
+          </div>
+
+          <!-- Activity Name -->
+          <div>
+            <label for="activityTitleInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Activity Name *</label>
+            <input type="text" id="activityTitleInput" required placeholder="e.g., Specialty Coffee Tasting, Sci-Fi Book" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
+          </div>
+
+          <!-- Leisure Categories with Add Category trigger -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">Category</label>
+              <button type="button" id="openAddCategoryBtn" class="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1">
+                <span>+ Custom Category</span>
+              </button>
+            </div>
+            <div id="categoryChipsPicker" class="grid grid-cols-3 gap-2 max-h-36 overflow-y-auto hide-scrollbar p-0.5">
+              <!-- Dynamically populated categories -->
+            </div>
+          </div>
+
+          <!-- Date & Time Row -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="activityDateInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Date *</label>
+              <input type="date" id="activityDateInput" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
+            </div>
+            <div>
+              <label for="activityTimeInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Time *</label>
+              <input type="time" id="activityTimeInput" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
+            </div>
+          </div>
+
+          <!-- Duration & Notes -->
+          <div class="grid grid-cols-3 gap-3">
+            <div class="col-span-1">
+              <label for="activityDurationInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Duration</label>
+              <select id="activityDurationInput" class="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs font-medium border border-slate-200 dark:border-slate-700 focus:outline-none">
+                <option value="30m">30 min</option>
+                <option value="1h" selected>1 hr</option>
+                <option value="1h 30m">1.5 hrs</option>
+                <option value="2h">2 hrs</option>
+                <option value="3h+">3+ hrs</option>
+              </select>
+            </div>
+            <div class="col-span-2">
+              <label for="activityNotesInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes / Location</label>
+              <input type="text" id="activityNotesInput" placeholder="e.g. Roastery cafe, finished chapter 8" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs font-medium border border-slate-200 dark:border-slate-700 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button type="submit" id="saveActivitySubmitBtn" class="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 active:scale-[0.98] text-white rounded-2xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              <span id="saveActivityBtnText">Save Activity</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: ADD PROFILE -->
+    <div id="addProfileModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden animate-fade-in">
+      <div class="w-full max-w-sm bg-white dark:bg-[#1E1B24] rounded-3xl shadow-2xl p-5 animate-slide-up border border-slate-100 dark:border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">Create New Profile</h3>
+          <button id="closeAddProfileModalBtn" aria-label="Close modal" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <form id="profileForm" class="space-y-3.5">
+          <div>
+            <label for="profileNameInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Person's Name *</label>
+            <input type="text" id="profileNameInput" required placeholder="e.g. Leo, Maya, Sarah" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Avatar Style / Color</label>
+            <div id="avatarPicker" class="flex gap-2 justify-between">
+              <button type="button" data-color="purple" class="avatar-option w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white font-bold flex items-center justify-center ring-2 ring-purple-600 ring-offset-2 dark:ring-offset-slate-900 transition">P</button>
+              <button type="button" data-color="emerald" class="avatar-option w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold flex items-center justify-center transition">E</button>
+              <button type="button" data-color="amber" class="avatar-option w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white font-bold flex items-center justify-center transition">A</button>
+              <button type="button" data-color="rose" class="avatar-option w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-500 text-white font-bold flex items-center justify-center transition">R</button>
+              <button type="button" data-color="sky" class="avatar-option w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-500 text-white font-bold flex items-center justify-center transition">S</button>
+            </div>
+          </div>
+
+          <div>
+            <label for="profileHobbyInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Favorite Leisure Interest</label>
+            <input type="text" id="profileHobbyInput" placeholder="e.g. Board games, Vinyl records, Reading" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
+          </div>
+
+          <div class="pt-2">
+            <button type="submit" id="saveProfileSubmitBtn" class="w-full py-3 bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white rounded-2xl font-bold text-sm shadow-md transition">
+              Create Profile
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: CLOUD SYNC CONFIGURATION -->
+    <div id="cloudSyncModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden animate-fade-in">
+      <div class="w-full max-w-sm bg-white dark:bg-[#1E1B24] rounded-3xl shadow-2xl p-5 animate-slide-up border border-slate-100 dark:border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+            </div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">Cloud Database Sync</h3>
+          </div>
+          <button id="closeCloudSyncModalBtn" aria-label="Close modal" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Connect Supabase to sync leisure activities across multiple devices in real-time.</p>
+
+        <form id="cloudSyncForm" class="space-y-3">
+          <div>
+            <label for="supabaseUrlInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Supabase Project URL</label>
+            <input type="url" id="supabaseUrlInput" placeholder="https://xyzcompany.supabase.co" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-xl text-xs font-mono border border-slate-200 dark:border-slate-700 focus:outline-none">
+          </div>
+
+          <div>
+            <label for="supabaseKeyInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Supabase Anon Key</label>
+            <input type="password" id="supabaseKeyInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..." class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-xl text-xs font-mono border border-slate-200 dark:border-slate-700 focus:outline-none">
+          </div>
+
+          <div class="flex items-center justify-between text-xs pt-1">
+            <span id="cloudStatusLabel" class="font-semibold text-slate-500">Mode: Local Offline</span>
+            <button type="button" id="disconnectCloudBtn" class="text-rose-500 hover:underline text-[11px] font-bold hidden">Disconnect</button>
+          </div>
+
+          <div class="pt-2">
+            <button type="submit" id="saveCloudSyncBtn" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white rounded-2xl font-bold text-xs shadow-md transition">
+              Connect & Sync Cloud
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: ADMIN AUTHENTICATION -->
+    <div id="adminAuthModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden animate-fade-in">
+      <div class="w-full max-w-sm bg-white dark:bg-[#1E1B24] rounded-3xl shadow-2xl p-5 animate-slide-up border border-slate-100 dark:border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold text-sm">
+              🛡️
+            </div>
+            <div>
+              <h3 id="adminModalTitle" class="text-base font-bold text-slate-900 dark:text-white">Admin Access</h3>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Unlock profile management & delete rights</p>
+            </div>
+          </div>
+          <button id="closeAdminModalBtn" aria-label="Close modal" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div id="adminLoginFormSection">
+          <form id="adminLoginForm" class="space-y-3.5">
+            <div>
+              <label for="adminPasswordInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Admin Password / PIN</label>
+              <input type="password" id="adminPasswordInput" required placeholder="Enter admin password" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
+              
+            </div>
+
+            <div id="adminErrorMsg" class="hidden text-xs text-rose-500 font-semibold">Incorrect password. Please try again.</div>
+
+            <button type="submit" id="adminLoginSubmitBtn" class="w-full py-2.5 bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white rounded-2xl font-bold text-xs shadow-md transition">
+              Log In as Admin
+            </button>
+          </form>
+        </div>
+
+        <div id="adminLoggedInSection" class="hidden space-y-3 pt-1">
+          <div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-800 dark:text-emerald-300">
+            <span class="font-bold">✓ Admin Mode Active</span>. You can add/delete profiles and manage categories.
+          </div>
+          <div class="space-y-1.5">
+            <label for="changeAdminPwInput" class="block text-[11px] font-bold text-slate-600 dark:text-slate-300">Change Admin Password</label>
+            <div class="flex gap-2">
+              <input type="password" id="changeAdminPwInput" placeholder="New password" class="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs">
+              <button type="button" id="saveNewAdminPwBtn" class="px-3 py-1.5 bg-purple-600 text-white rounded-xl text-xs font-bold shrink-0">Update</button>
+            </div>
+          </div>
+          <button type="button" id="adminLogoutBtn" class="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 text-slate-700 dark:text-slate-300 rounded-2xl font-bold text-xs transition">
+            Log Out from Admin
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- MODAL: ADD CUSTOM CATEGORY (ADMIN) -->
+    <div id="addCategoryModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden animate-fade-in">
+      <div class="w-full max-w-sm bg-white dark:bg-[#1E1B24] rounded-3xl shadow-2xl p-5 animate-slide-up border border-slate-100 dark:border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">✨</span>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">New Category</h3>
+          </div>
+          <button id="closeAddCategoryModalBtn" aria-label="Close modal" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <form id="customCategoryForm" class="space-y-3.5">
+          <div>
+            <label for="catNameInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Category Name *</label>
+            <input type="text" id="catNameInput" required placeholder="e.g. Cooking, Photography, Cycling" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Pick Emoji Icon</label>
+            <div id="emojiPresetPicker" class="flex flex-wrap gap-2 mb-2">
+              <button type="button" data-emoji="🍳" class="emoji-opt w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-lg flex items-center justify-center hover:bg-purple-100 transition">🍳</button>
+              <button type="button" data-emoji="📸" class="emoji-opt w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-lg flex items-center justify-center hover:bg-purple-100 transition">📸</button>
+              <button type="button" data-emoji="🚴" class="emoji-opt w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-lg flex items-center justify-center hover:bg-purple-100 transition">🚴</button>
+              <button type="button" data-emoji="🧘" class="emoji-opt w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-lg flex items-center justify-center hover:bg-purple-100 transition">🧘</button>
+              <button type="button" data-emoji="🎨" class="emoji-opt w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-lg flex items-center justify-center hover:bg-purple-100 transition">🎨</button>
+              <button type="button" data-emoji="✍️" class="emoji-opt w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-lg flex items-center justify-center hover:bg-purple-100 transition">✍️</button>
+              <button type="button" data-emoji="☕" class="emoji-opt w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-lg flex items-center justify-center hover:bg-purple-100 transition">☕</button>
+              <button type="button" data-emoji="🧗" class="emoji-opt w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-lg flex items-center justify-center hover:bg-purple-100 transition">🧗</button>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400">Selected:</span>
+              <input type="text" id="catEmojiInput" maxlength="2" value="🎯" class="w-12 text-center py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base">
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button type="submit" id="saveCategorySubmitBtn" class="w-full py-2.5 bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white rounded-2xl font-bold text-xs shadow-md transition">
+              Create Category
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-medium shadow-lg z-50 flex items-center gap-2 hidden transition-all duration-300">
+      <span id="toastIcon">✨</span>
+      <span id="toastMessage">Action completed</span>
+    </div>
+
+  </div>
+
+  <!-- Interactive JavaScript Logic -->
+  <script>
+    // No hardcoded data: start clean and sync live with Supabase
+    const INITIAL_PROFILES = [];
+    const INITIAL_ACTIVITIES = [];
+
+    const now = new Date();
+    const formatDateStr = (d) => d.toISOString().split('T')[0];
+    const todayStr = formatDateStr(now);
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setDate(now.getDate() - 1);
+    const yesterdayStr = formatDateStr(yesterdayDate);
+
+    // State Management
+    
+    // Admin Auth State
+    let isAdmin = false;
+    const DEFAULT_ADMIN_PASSWORD = 'admin123';
+
+    function checkAdminState() {
+      try {
+        isAdmin = localStorage.getItem('leisure_is_admin') === 'true';
+      } catch (e) {
+        isAdmin = false;
+      }
+      updateAdminUI();
+    }
+
+    function setAdminState(logged) {
+      isAdmin = logged;
+      try {
+        if (logged) {
+          localStorage.setItem('leisure_is_admin', 'true');
+        } else {
+          localStorage.removeItem('leisure_is_admin');
+        }
+      } catch (e) {}
+      updateAdminUI();
+      renderFullProfilesList();
+    }
+
+    function updateAdminUI() {
+      const badge = document.getElementById('adminActiveBadge');
+      const toggleBtn = document.getElementById('adminLoginToggleBtn');
+      const loginSec = document.getElementById('adminLoginFormSection');
+      const loggedSec = document.getElementById('adminLoggedInSection');
+
+      if (badge) badge.classList.toggle('hidden', !isAdmin);
+      if (toggleBtn) {
+        toggleBtn.className = isAdmin
+          ? 'w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center transition shadow-xs'
+          : 'w-9 h-9 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition';
+      }
+      if (loginSec) loginSec.classList.toggle('hidden', isAdmin);
+      if (loggedSec) loggedSec.classList.toggle('hidden', !isAdmin);
+    }
+
+    
+    // State for Categories and Edit
+    let editingActivityId = null;
+    const DEFAULT_CATEGORIES = [
+      { name: 'Reading', icon: '📚' },
+      { name: 'Gaming', icon: '🎮' },
+      { name: 'Café & Dining', icon: '☕' },
+      { name: 'Creative & Music', icon: '🎸' },
+      { name: 'Movies & TV', icon: '🎬' },
+      { name: 'Outdoor & Strolls', icon: '🌿' }
+    ];
+    let customCategories = [];
+
+    function loadCustomCategories() {
+      try {
+        const stored = localStorage.getItem('activity_custom_categories_v1');
+        customCategories = stored ? JSON.parse(stored) : [];
+      } catch (e) {
+        customCategories = [];
+      }
+    }
+
+    function saveCustomCategories() {
+      try {
+        localStorage.setItem('activity_custom_categories_v1', JSON.stringify(customCategories));
+      } catch (e) {}
+    }
+
+    function getAllCategories() {
+      return [...DEFAULT_CATEGORIES, ...customCategories];
+    }
+
+    function renderCategoryPicker() {
+      const container = document.getElementById('categoryChipsPicker');
+      if (!container) return;
+
+      const allCats = getAllCategories();
+      container.innerHTML = allCats.map(cat => {
+        const isSelected = selectedFormCategory === cat.name;
+        const isCustom = customCategories.some(c => c.name === cat.name);
+        return `
+          <div class="relative group/cat flex items-center">
+            <button type="button" data-cat="${cat.name}" class="cat-chip w-full py-2 px-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
+              isSelected
+                ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold'
+                : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300'
+            }">
+              <span>${cat.icon}</span><span class="truncate">${cat.name}</span>
+            </button>
+            ${(isAdmin && isCustom) ? `
+            <button type="button" data-delete-cat="${cat.name}" title="Delete Category" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 hover:bg-rose-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs transition z-10">
+              ✕
+            </button>` : ''}
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('[data-cat]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedFormCategory = btn.getAttribute('data-cat') || 'Reading';
+          renderCategoryPicker();
+        });
+      });
+
+      container.querySelectorAll('[data-delete-cat]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const catName = btn.getAttribute('data-delete-cat');
+          customCategories = customCategories.filter(c => c.name !== catName);
+          saveCustomCategories();
+          deleteCategoryFromCloud(catName);
+          if (selectedFormCategory === catName) selectedFormCategory = 'Reading';
+          renderCategoryPicker();
+          showToast(`Category "${catName}" deleted`, '🗑️');
+        });
+      });
+    }
+
+    let profiles = [];
+    let activities = [];
+    let selectedProfileFilter = 'all'; // 'all' or profileId
+    let selectedDateFilter = 'all'; // 'all', 'today', 'yesterday', 'this-week', 'custom'
+    let customFilterDate = '';
+    let searchQuery = '';
+    let currentNavTab = 'feed';
+    let selectedFormProfileId = 'p1';
+    let selectedFormCategory = 'Reading';
+    let selectedAvatarColor = 'purple';
+
+
+    // Cloud Sync State (Supabase)
+    let supabaseClient = null;
+    let cloudSyncEnabled = false;
+
+    const PRECONFIGURED_SUPABASE_URL = 'https://aqdrigusidpfsqeidwux.supabase.co';
+    const PRECONFIGURED_SUPABASE_KEY = 'sb_publishable_wIB4pyCSIl6hKA8ahK5YoA_iIMMqyHn';
+
+    function initCloudSync() {
+      try {
+        const storedUrl = localStorage.getItem('leisure_supabase_url') || PRECONFIGURED_SUPABASE_URL;
+        const storedKey = localStorage.getItem('leisure_supabase_key') || PRECONFIGURED_SUPABASE_KEY;
+        if (storedUrl && storedKey && window.supabase) {
+          supabaseClient = window.supabase.createClient(storedUrl, storedKey);
+          cloudSyncEnabled = true;
+          updateCloudUIState(true);
+          syncFromCloud();
+        } else {
+          updateCloudUIState(false);
+        }
+      } catch (err) {
+        console.warn('Cloud sync init offline:', err);
+        updateCloudUIState(false);
+      }
+    }
+
+    function updateCloudUIState(connected) {
+      const statusLabel = document.getElementById('cloudStatusLabel');
+      const disconnectBtn = document.getElementById('disconnectCloudBtn');
+      const cloudBtn = document.getElementById('openCloudSyncBtn');
+      if (statusLabel) {
+        statusLabel.textContent = connected ? 'Mode: Live Cloud Sync 🟢' : 'Mode: Local Storage (Offline) ⚪';
+        statusLabel.className = connected ? 'font-bold text-emerald-600 dark:text-emerald-400 text-xs' : 'font-semibold text-slate-500 text-xs';
+      }
+      if (disconnectBtn) disconnectBtn.classList.toggle('hidden', !connected);
+      if (cloudBtn) {
+        cloudBtn.className = connected
+          ? 'w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center transition shadow-xs'
+          : 'w-9 h-9 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition';
+      }
+    }
+
+    let realtimeSubscribed = false;
+
+    async function syncFromCloud() {
+      if (!supabaseClient) return;
+      try {
+        // Fetch profiles
+        const { data: rawProfiles, error: pErr } = await supabaseClient.from('profiles').select('*');
+        if (!pErr && rawProfiles) {
+          profiles = rawProfiles.map(p => ({
+            id: p.id,
+            name: p.name,
+            color: p.color || 'purple',
+            hobby: p.hobby || '',
+            avatarText: p.avatartext || p.avatarText || (p.name ? p.name.charAt(0).toUpperCase() : 'A')
+          }));
+        }
+
+        // Fetch activities
+        const { data: rawActivities, error: aErr } = await supabaseClient.from('activities').select('*').order('date', { ascending: false });
+        if (!aErr && rawActivities) {
+          activities = rawActivities.map(a => ({
+            id: a.id,
+            profileId: a.profileid || a.profileId || '',
+            title: a.title,
+            category: a.category,
+            categoryIcon: a.categoryicon || a.categoryIcon || '🎯',
+            date: a.date,
+            time: a.time,
+            duration: a.duration || '1h',
+            notes: a.notes || ''
+          }));
+        }
+
+        // Fetch custom categories
+        const { data: rawCats, error: cErr } = await supabaseClient.from('categories').select('*');
+        if (!cErr && rawCats && rawCats.length > 0) {
+          customCategories = rawCats.map(c => ({ id: c.id, name: c.name, icon: c.icon }));
+          saveCustomCategories();
+          renderCategoryPicker();
+        }
+
+        saveState();
+        renderProfilesCarousel();
+        renderFullProfilesList();
+        renderActivitiesList();
+        renderStats();
+
+        // Subscribe to real-time changes across all connected devices
+        if (!realtimeSubscribed) {
+          realtimeSubscribed = true;
+          supabaseClient
+            .channel('public:realtime_tracker')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => syncFromCloud())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, () => syncFromCloud())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => syncFromCloud())
+            .subscribe();
+        }
+      } catch (e) {
+        console.warn('Cloud sync error:', e);
+      }
+    }
+
+    async function syncActivityToCloud(activity) {
+      if (!supabaseClient) return;
+      try {
+        const payload = {
+          id: activity.id,
+          profileid: activity.profileId,
+          title: activity.title,
+          category: activity.category,
+          categoryicon: activity.categoryIcon || '🎯',
+          date: activity.date,
+          time: activity.time,
+          duration: activity.duration || '1h',
+          notes: activity.notes || ''
+        };
+        const { error } = await supabaseClient.from('activities').upsert([payload]);
+        if (error) console.error('Supabase activity error:', error.message);
+      } catch (e) {
+        console.warn('Failed to push activity to cloud:', e);
+      }
+    }
+
+    async function syncProfileToCloud(profile) {
+      if (!supabaseClient) return;
+      try {
+        const payload = {
+          id: profile.id,
+          name: profile.name,
+          color: profile.color || 'purple',
+          hobby: profile.hobby || '',
+          avatartext: profile.avatarText || profile.name.charAt(0).toUpperCase()
+        };
+        const { error } = await supabaseClient.from('profiles').upsert([payload]);
+        if (error) console.error('Supabase profile error:', error.message);
+      } catch (e) {
+        console.warn('Failed to push profile to cloud:', e);
+      }
+    }
+
+    async function deleteProfileFromCloud(profileId) {
+      if (!supabaseClient) return;
+      try {
+        await supabaseClient.from('profiles').delete().eq('id', profileId);
+        await supabaseClient.from('activities').delete().eq('profileid', profileId);
+      } catch (e) {
+        console.warn('Failed to delete profile from cloud:', e);
+      }
+    }
+
+    async function deleteActivityFromCloud(activityId) {
+      if (!supabaseClient) return;
+      try {
+        await supabaseClient.from('activities').delete().eq('id', activityId);
+      } catch (e) {
+        console.warn('Failed to delete activity from cloud:', e);
+      }
+    }
+
+    async function syncCategoryToCloud(cat) {
+      if (!supabaseClient) return;
+      try {
+        await supabaseClient.from('categories').upsert([{ id: cat.id || 'cat-' + Date.now(), name: cat.name, icon: cat.icon }]);
+      } catch (e) {
+        console.warn('Failed to push category to cloud:', e);
+      }
+    }
+
+    async function deleteCategoryFromCloud(catName) {
+      if (!supabaseClient) return;
+      try {
+        await supabaseClient.from('categories').delete().eq('name', catName);
+      } catch (e) {
+        console.warn('Failed to delete category from cloud:', e);
+      }
+    }
+
+    // Safe LocalStorage Load/Save
+    function loadState() {
+      try {
+        const storedProfiles = localStorage.getItem('leisure_profiles_v1');
+        const storedActivities = localStorage.getItem('leisure_activities_v1');
+        profiles = storedProfiles ? JSON.parse(storedProfiles) : INITIAL_PROFILES;
+        activities = storedActivities ? JSON.parse(storedActivities) : INITIAL_ACTIVITIES;
+      } catch (e) {
+        profiles = INITIAL_PROFILES;
+        activities = INITIAL_ACTIVITIES;
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem('leisure_profiles_v1', JSON.stringify(profiles));
+        localStorage.setItem('leisure_activities_v1', JSON.stringify(activities));
+      } catch (e) {
+        // Fallback for sandboxed frames
+      }
+    }
+
+    // Color Maps
+    const colorClasses = {
+      purple: {
+        gradient: 'from-purple-600 to-indigo-600',
+        border: 'border-purple-500',
+        bgLight: 'bg-purple-50 dark:bg-purple-950/50',
+        text: 'text-purple-700 dark:text-purple-300',
+        ring: 'ring-purple-500'
+      },
+      emerald: {
+        gradient: 'from-emerald-600 to-teal-600',
+        border: 'border-emerald-500',
+        bgLight: 'bg-emerald-50 dark:bg-emerald-950/50',
+        text: 'text-emerald-700 dark:text-emerald-300',
+        ring: 'ring-emerald-500'
+      },
+      amber: {
+        gradient: 'from-amber-500 to-orange-500',
+        border: 'border-amber-500',
+        bgLight: 'bg-amber-50 dark:bg-amber-950/50',
+        text: 'text-amber-700 dark:text-amber-300',
+        ring: 'ring-amber-500'
+      },
+      rose: {
+        gradient: 'from-rose-500 to-pink-600',
+        border: 'border-rose-500',
+        bgLight: 'bg-rose-50 dark:bg-rose-950/50',
+        text: 'text-rose-700 dark:text-rose-300',
+        ring: 'ring-rose-500'
+      },
+      sky: {
+        gradient: 'from-sky-500 to-blue-600',
+        border: 'border-sky-500',
+        bgLight: 'bg-sky-50 dark:bg-sky-950/50',
+        text: 'text-sky-700 dark:text-sky-300',
+        ring: 'ring-sky-500'
+      },
+      indigo: {
+        gradient: 'from-indigo-600 to-violet-600',
+        border: 'border-indigo-500',
+        bgLight: 'bg-indigo-50 dark:bg-indigo-950/50',
+        text: 'text-indigo-700 dark:text-indigo-300',
+        ring: 'ring-indigo-500'
+      }
+    };
+
+    function showToast(msg, icon = '✨') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMessage');
+      const toastIcon = document.getElementById('toastIcon');
+      if (!toast || !toastMsg || !toastIcon) return;
+      toastMsg.textContent = msg;
+      toastIcon.textContent = icon;
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 2600);
+    }
+
+    // Render Profile Dropdown & Selected Profile View (Top of Feed)
+    function renderProfilesCarousel() {
+      const selectEl = document.getElementById('profileDropdownSelect');
+      const avatarEl = document.getElementById('selectedProfileAvatar');
+      const nameEl = document.getElementById('selectedProfileName');
+      const subEl = document.getElementById('selectedProfileSub');
+
+      if (!selectEl) return;
+
+      // Populate dropdown options (name only)
+      let optionsHtml = '';
+      if (profiles.length === 0) {
+        optionsHtml = `<option value="all">No Profiles Yet (Admin: Tap + Profile)</option>`;
+      } else {
+        optionsHtml = `<option value="all">Everyone</option>`;
+        profiles.forEach(p => {
+          optionsHtml += `<option value="${p.id}">${p.name}</option>`;
+        });
+      }
+      selectEl.innerHTML = optionsHtml;
+      selectEl.value = selectedProfileFilter;
+
+      // Update the visual selected profile display card
+      if (selectedProfileFilter === 'all') {
+        if (avatarEl) {
+          avatarEl.className = 'w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0';
+          avatarEl.textContent = 'All';
+        }
+        if (nameEl) nameEl.textContent = 'Everyone';
+        if (subEl) subEl.textContent = 'Tap to switch profile';
+      } else {
+        const prof = profiles.find(p => p.id === selectedProfileFilter) || profiles[0];
+        const col = colorClasses[prof.color] || colorClasses.purple;
+        if (avatarEl) {
+          avatarEl.className = `w-11 h-11 rounded-2xl bg-gradient-to-tr ${col.gradient} text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0`;
+          avatarEl.textContent = prof.avatarText || prof.name.charAt(0);
+        }
+        if (nameEl) nameEl.textContent = prof.name;
+        if (subEl) subEl.textContent = 'Active profile';
+      }
+
+      // Handle dropdown selection change
+      selectEl.onchange = (e) => {
+        selectedProfileFilter = e.target.value;
+        renderProfilesCarousel();
+        renderActivitiesList();
+        const displayName = selectedProfileFilter === 'all' ? 'Everyone' : (profiles.find(p => p.id === selectedProfileFilter)?.name || 'Profile');
+        showToast(`Viewing: ${displayName}`, '👤');
+      };
+
+
+    }
+
+    // Render Profiles in Modal Picker (Add Activity Form)
+    function renderFormProfilePicker() {
+      const container = document.getElementById('formProfilePicker');
+      if (!container) return;
+
+      container.innerHTML = profiles.map(p => {
+        const isSelected = selectedFormProfileId === p.id;
+        const col = colorClasses[p.color] || colorClasses.purple;
+        return `
+          <button type="button" data-form-profile="${p.id}" class="shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+            isSelected
+              ? 'bg-purple-50 dark:bg-purple-950/60 border-purple-600 text-purple-700 dark:text-purple-300 shadow-xs'
+              : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+          }">
+            <div class="w-5 h-5 rounded-full bg-gradient-to-tr ${col.gradient} text-white flex items-center justify-center text-[10px] font-bold">
+              ${p.avatarText || p.name.charAt(0)}
+            </div>
+            <span>${p.name}</span>
+          </button>
+        `;
+      }).join('');
+
+      container.querySelectorAll('[data-form-profile]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedFormProfileId = btn.getAttribute('data-form-profile');
+          renderFormProfilePicker();
+        });
+      });
+    }
+
+    // Filter Activities based on Search + Date + Profile
+    function getFilteredActivities() {
+      const q = searchQuery.trim().toLowerCase();
+      
+      return activities.filter(act => {
+        // 1. Profile filter
+        if (selectedProfileFilter !== 'all' && act.profileId !== selectedProfileFilter) {
+          return false;
+        }
+
+        // 2. Search query filter (matches activity name, category, notes, or profile name)
+        if (q) {
+          const profile = profiles.find(p => p.id === act.profileId);
+          const pName = profile ? profile.name.toLowerCase() : '';
+          const matchTitle = act.title.toLowerCase().includes(q);
+          const matchCat = act.category.toLowerCase().includes(q);
+          const matchNotes = (act.notes || '').toLowerCase().includes(q);
+          const matchDate = (act.date || '').includes(q);
+          const matchProfile = pName.includes(q);
+          if (!matchTitle && !matchCat && !matchNotes && !matchDate && !matchProfile) {
+            return false;
+          }
+        }
+
+        // 3. Date filter
+        if (selectedDateFilter === 'today') {
+          return act.date === todayStr;
+        } else if (selectedDateFilter === 'yesterday') {
+          return act.date === yesterdayStr;
+        } else if (selectedDateFilter === 'this-week') {
+          // within 7 days
+          const actDate = new Date(act.date);
+          const diffDays = Math.floor((now - actDate) / (1000 * 60 * 60 * 24));
+          return diffDays >= 0 && diffDays <= 7;
+        } else if (selectedDateFilter === 'custom' && customFilterDate) {
+          return act.date === customFilterDate;
+        }
+
+        return true;
+      });
+    }
+
+    // Render Activities List
+    function renderActivitiesList() {
+      const container = document.getElementById('activitiesList');
+      const emptyState = document.getElementById('emptyActivitiesState');
+      const countLabel = document.getElementById('activityCountLabel');
+      const filteredBadge = document.getElementById('filteredBadge');
+      const resetBtn = document.getElementById('resetAllFiltersBtn');
+
+      if (!container || !emptyState) return;
+
+      const filtered = getFilteredActivities();
+      const isFiltered = (selectedProfileFilter !== 'all') || (selectedDateFilter !== 'all') || (searchQuery.trim().length > 0);
+
+      if (countLabel) {
+        countLabel.textContent = `Showing ${filtered.length} ${filtered.length === 1 ? 'activity' : 'activities'}`;
+      }
+      if (filteredBadge) {
+        filteredBadge.classList.toggle('hidden', !isFiltered);
+      }
+      if (resetBtn) {
+        resetBtn.classList.toggle('hidden', !isFiltered);
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      // Sort by date and time descending
+      const sorted = [...filtered].sort((a, b) => {
+        const da = new Date(`${a.date}T${a.time || '00:00'}`);
+        const db = new Date(`${b.date}T${b.time || '00:00'}`);
+        return db - da;
+      });
+
+      container.innerHTML = sorted.map(act => {
+        const profile = profiles.find(p => p.id === act.profileId) || { name: 'Friend', color: 'purple', avatarText: 'F' };
+        const col = colorClasses[profile.color] || colorClasses.purple;
+
+        // Friendly formatted date label
+        let displayDate = act.date;
+        if (act.date === todayStr) displayDate = 'Today';
+        else if (act.date === yesterdayStr) displayDate = 'Yesterday';
+
+        return `
+          <div class="bg-white dark:bg-[#1E1B24] p-4 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800/80 hover:shadow-md transition">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50">
+                    <span>${act.categoryIcon || '🎯'}</span>
+                    <span>${act.category}</span>
+                  </span>
+                  <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>${act.time || '12:00'}</span>
+                    ${act.duration ? `<span class="text-slate-400 font-normal">(${act.duration})</span>` : ''}
+                  </span>
+                </div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">${act.title}</h3>
+                ${act.notes ? `<p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">${act.notes}</p>` : ''}
+              </div>
+              <div class="flex items-center gap-1">
+                <button type="button" data-edit-act="${act.id}" title="Edit activity" class="text-slate-300 dark:text-slate-600 hover:text-purple-600 p-1 rounded-lg transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </button>
+                <button type="button" data-delete-act="${act.id}" title="Remove activity" class="text-slate-300 dark:text-slate-600 hover:text-rose-500 p-1 rounded-lg transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Card Footer: Profile Badge + Date Stamp -->
+            <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+              <div class="flex items-center gap-1.5">
+                <div class="w-5 h-5 rounded-full bg-gradient-to-tr ${col.gradient} text-white flex items-center justify-center text-[10px] font-bold">
+                  ${profile.avatarText || profile.name.charAt(0)}
+                </div>
+                <span class="font-semibold text-slate-700 dark:text-slate-300">${profile.name}</span>
+              </div>
+              <div class="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+                <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span>${displayDate}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Wire edit and delete buttons
+      container.querySelectorAll('[data-edit-act]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-edit-act');
+          openEditActivityModal(id);
+        });
+      });
+
+      // Wire delete buttons
+      container.querySelectorAll('[data-delete-act]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-delete-act');
+          activities = activities.filter(a => a.id !== id);
+          deleteActivityFromCloud(id);
+          saveState();
+          renderActivitiesList();
+          renderStats();
+          showToast('Activity removed', '🗑️');
+        });
+      });
+    }
+
+    // Render Full Profiles List (Profiles Tab)
+    function renderFullProfilesList() {
+      const container = document.getElementById('fullProfilesList');
+      if (!container) return;
+
+      container.innerHTML = profiles.map(p => {
+        const pActivities = activities.filter(a => a.profileId === p.id);
+        const col = colorClasses[p.color] || colorClasses.purple;
+
+        return `
+          <div class="p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr ${col.gradient} text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                ${p.avatarText || p.name.charAt(0)}
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-slate-900 dark:text-white leading-tight">${p.name}</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${p.hobby || 'Leisure enthusiast'}</p>
+                <span class="text-[10px] font-bold text-purple-600 dark:text-purple-400">${pActivities.length} activities logged</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button type="button" data-filter-profile="${p.id}" class="px-3 py-1 bg-white dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-600 dark:text-purple-300 border border-slate-200 dark:border-slate-700 rounded-full text-xs font-bold transition">
+                View Feed
+              </button>
+              ${isAdmin ? `
+              <button type="button" data-delete-profile="${p.id}" title="Delete profile (Admin)" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('[data-filter-profile]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pid = btn.getAttribute('data-filter-profile');
+          selectedProfileFilter = pid;
+
+          switchTab('feed');
+          renderProfilesCarousel();
+          renderActivitiesList();
+        });
+      });
+
+      container.querySelectorAll('[data-delete-profile]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pid = btn.getAttribute('data-delete-profile');
+          const profToDelete = profiles.find(p => p.id === pid);
+          const pName = profToDelete ? profToDelete.name : 'Profile';
+          profiles = profiles.filter(p => p.id !== pid);
+          activities = activities.filter(a => a.profileId !== pid);
+          if (selectedProfileFilter === pid) {
+            selectedProfileFilter = 'all';
+          }
+          if (selectedFormProfileId === pid) {
+            selectedFormProfileId = profiles.length > 0 ? profiles[0].id : '';
+          }
+          deleteProfileFromCloud(pid);
+          saveState();
+          renderProfilesCarousel();
+          renderFullProfilesList();
+          renderActivitiesList();
+          renderStats();
+          showToast(`Profile "${pName}" deleted`, '🗑️');
+        });
+      });
+    }
+
+    // Render Stats & Insights Tab
+    function renderStats() {
+      const container = document.getElementById('categoryStatsContainer');
+      const totalHoursEl = document.getElementById('totalHours');
+      const topCatEl = document.getElementById('topCategoryName');
+
+      if (!container) return;
+
+      const catCounts = {};
+      let totalMinutes = 0;
+
+      activities.forEach(a => {
+        catCounts[a.category] = (catCounts[a.category] || 0) + 1;
+        // estimate duration in minutes
+        let mins = 60;
+        if (a.duration === '30m') mins = 30;
+        else if (a.duration === '1h 30m') mins = 90;
+        else if (a.duration === '2h') mins = 120;
+        else if (a.duration === '2h 15m') mins = 135;
+        else if (a.duration === '3h+') mins = 180;
+        totalMinutes += mins;
+      });
+
+      if (totalHoursEl) {
+        totalHoursEl.textContent = `${(totalMinutes / 60).toFixed(1)} hrs`;
+      }
+
+      const sortedCats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
+      if (topCatEl && sortedCats.length > 0) {
+        topCatEl.textContent = sortedCats[0][0];
+      }
+
+      const totalActs = activities.length || 1;
+
+      container.innerHTML = sortedCats.map(([cat, count]) => {
+        const pct = Math.round((count / totalActs) * 100);
+        return `
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs font-semibold">
+              <span class="text-slate-700 dark:text-slate-300">${cat}</span>
+              <span class="text-purple-600 dark:text-purple-400 font-bold">${count} sessions (${pct}%)</span>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+              <div class="bg-gradient-to-r from-purple-600 to-indigo-500 h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Tab Navigation Logic
+    function switchTab(tabId) {
+      currentNavTab = tabId;
+      const vFeed = document.getElementById('viewFeed');
+      const vProfiles = document.getElementById('viewProfiles');
+      const vStats = document.getElementById('viewStats');
+      const topSubtext = document.getElementById('topSubtext');
+      const fab = document.getElementById('fabAddActivityBtn');
+
+      if (!vFeed || !vProfiles || !vStats) return;
+
+      vFeed.classList.add('hidden');
+      vProfiles.classList.add('hidden');
+      vStats.classList.add('hidden');
+
+      if (tabId === 'feed') {
+        vFeed.classList.remove('hidden');
+        if (topSubtext) topSubtext.textContent = 'Activities & Habits';
+        if (fab) fab.classList.remove('hidden');
+      } else if (tabId === 'profiles') {
+        vProfiles.classList.remove('hidden');
+        if (topSubtext) topSubtext.textContent = 'Profile Management';
+        if (fab) fab.classList.remove('hidden');
+        renderFullProfilesList();
+      } else if (tabId === 'stats') {
+        vStats.classList.remove('hidden');
+        if (topSubtext) topSubtext.textContent = 'Activity Insights';
+        if (fab) fab.classList.add('hidden');
+        renderStats();
+      }
+
+      // Update Nav Bar visual state
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        const isCurrent = btn.getAttribute('data-nav') === tabId;
+        const iconContainer = btn.querySelector('div');
+        const label = btn.querySelector('span');
+
+        if (isCurrent) {
+          btn.classList.add('text-purple-600', 'dark:text-purple-400');
+          btn.classList.remove('text-slate-400', 'dark:text-slate-500');
+          if (iconContainer) iconContainer.classList.add('bg-purple-100', 'dark:bg-purple-950/60');
+          if (label) label.classList.add('font-bold');
+        } else {
+          btn.classList.remove('text-purple-600', 'dark:text-purple-400');
+          btn.classList.add('text-slate-400', 'dark:text-slate-500');
+          if (iconContainer) iconContainer.classList.remove('bg-purple-100', 'dark:bg-purple-950/60');
+          if (label) label.classList.remove('font-bold');
+        }
+      });
+    }
+
+    // Modal Handlers
+    function openAddActivityModal() {
+      editingActivityId = null;
+      const modal = document.getElementById('addActivityModal');
+      const titleEl = document.getElementById('activityModalTitle');
+      const btnText = document.getElementById('saveActivityBtnText');
+      const nameInp = document.getElementById('activityTitleInput');
+      const notesInp = document.getElementById('activityNotesInput');
+      const dateInp = document.getElementById('activityDateInput');
+      const timeInp = document.getElementById('activityTimeInput');
+
+      if (titleEl) titleEl.textContent = 'Log Activity';
+      if (btnText) btnText.textContent = 'Save Activity';
+      if (nameInp) nameInp.value = '';
+      if (notesInp) notesInp.value = '';
+
+      if (modal) {
+        modal.classList.remove('hidden');
+        if (dateInp && !dateInp.value) dateInp.value = todayStr;
+        if (timeInp && !timeInp.value) {
+          const hours = String(now.getHours()).padStart(2, '0');
+          const mins = String(now.getMinutes()).padStart(2, '0');
+          timeInp.value = `${hours}:${mins}`;
+        }
+        renderFormProfilePicker();
+        renderCategoryPicker();
+      }
+    }
+
+    function openEditActivityModal(actId) {
+      const act = activities.find(a => a.id === actId);
+      if (!act) return;
+      editingActivityId = act.id;
+
+      const modal = document.getElementById('addActivityModal');
+      const titleEl = document.getElementById('activityModalTitle');
+      const btnText = document.getElementById('saveActivityBtnText');
+      const nameInp = document.getElementById('activityTitleInput');
+      const dateInp = document.getElementById('activityDateInput');
+      const timeInp = document.getElementById('activityTimeInput');
+      const durInp = document.getElementById('activityDurationInput');
+      const notesInp = document.getElementById('activityNotesInput');
+
+      if (titleEl) titleEl.textContent = 'Edit Activity';
+      if (btnText) btnText.textContent = 'Update Activity';
+      if (nameInp) nameInp.value = act.title;
+      if (dateInp) dateInp.value = act.date;
+      if (timeInp) timeInp.value = act.time;
+      if (durInp) durInp.value = act.duration || '1h';
+      if (notesInp) notesInp.value = act.notes || '';
+
+      selectedFormProfileId = act.profileId;
+      selectedFormCategory = act.category;
+
+      if (modal) {
+        modal.classList.remove('hidden');
+        renderFormProfilePicker();
+        renderCategoryPicker();
+      }
+    }
+
+    function closeAddActivityModal() {
+      const modal = document.getElementById('addActivityModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function openAddProfileModal() {
+      const modal = document.getElementById('addProfileModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeAddProfileModal() {
+      const modal = document.getElementById('addProfileModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // Event Wire-up on DOMContentLoaded
+    window.addEventListener('DOMContentLoaded', () => {
+
+      // Cloud Sync Modal wiring
+      initCloudSync();
+
+      const openCloudBtn = document.getElementById('openCloudSyncBtn');
+      const closeCloudBtn = document.getElementById('closeCloudSyncModalBtn');
+      const cloudModal = document.getElementById('cloudSyncModal');
+      const cloudForm = document.getElementById('cloudSyncForm');
+      const disconnectBtn = document.getElementById('disconnectCloudBtn');
+      const urlInp = document.getElementById('supabaseUrlInput');
+      const keyInp = document.getElementById('supabaseKeyInput');
+
+      if (openCloudBtn && cloudModal) {
+        openCloudBtn.addEventListener('click', () => {
+          if (urlInp) urlInp.value = localStorage.getItem('leisure_supabase_url') || PRECONFIGURED_SUPABASE_URL;
+          if (keyInp) keyInp.value = localStorage.getItem('leisure_supabase_key') || PRECONFIGURED_SUPABASE_KEY;
+          cloudModal.classList.remove('hidden');
+        });
+      }
+
+      if (closeCloudBtn && cloudModal) {
+        closeCloudBtn.addEventListener('click', () => {
+          cloudModal.classList.add('hidden');
+        });
+      }
+
+      if (disconnectBtn) {
+        disconnectBtn.addEventListener('click', () => {
+          localStorage.removeItem('leisure_supabase_url');
+          localStorage.removeItem('leisure_supabase_key');
+          supabaseClient = null;
+          cloudSyncEnabled = false;
+          updateCloudUIState(false);
+          showToast('Disconnected from cloud sync', '⚪');
+          if (cloudModal) cloudModal.classList.add('hidden');
+        });
+      }
+
+      if (cloudForm) {
+        cloudForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const urlVal = urlInp ? urlInp.value.trim() : '';
+          const keyVal = keyInp ? keyInp.value.trim() : '';
+          if (urlVal && keyVal && window.supabase) {
+            localStorage.setItem('leisure_supabase_url', urlVal);
+            localStorage.setItem('leisure_supabase_key', keyVal);
+            supabaseClient = window.supabase.createClient(urlVal, keyVal);
+            cloudSyncEnabled = true;
+            updateCloudUIState(true);
+            syncFromCloud();
+            showToast('Connected to Supabase live sync!', '🟢');
+          }
+          if (cloudModal) cloudModal.classList.add('hidden');
+        });
+      }
+
+      
+      // Admin Modal wiring
+      checkAdminState();
+
+      const adminToggleBtn = document.getElementById('adminLoginToggleBtn');
+      const adminModal = document.getElementById('adminAuthModal');
+      const closeAdminBtn = document.getElementById('closeAdminModalBtn');
+      const adminForm = document.getElementById('adminLoginForm');
+      const adminPwInp = document.getElementById('adminPasswordInput');
+      const adminErrMsg = document.getElementById('adminErrorMsg');
+      const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+
+      if (adminToggleBtn && adminModal) {
+        adminToggleBtn.addEventListener('click', () => {
+          updateAdminUI();
+          if (adminErrMsg) adminErrMsg.classList.add('hidden');
+          if (adminPwInp) adminPwInp.value = '';
+          adminModal.classList.remove('hidden');
+        });
+      }
+
+      if (closeAdminBtn && adminModal) {
+        closeAdminBtn.addEventListener('click', () => {
+          adminModal.classList.add('hidden');
+        });
+      }
+
+      if (adminForm) {
+        adminForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const pw = adminPwInp ? adminPwInp.value.trim() : '';
+          const savedPw = localStorage.getItem('leisure_admin_pw') || DEFAULT_ADMIN_PASSWORD;
+          if (pw === savedPw) {
+            setAdminState(true);
+            showToast('Admin mode unlocked! 🛡️', '🔑');
+            if (adminModal) adminModal.classList.add('hidden');
+          } else {
+            if (adminErrMsg) adminErrMsg.classList.remove('hidden');
+          }
+        });
+      }
+
+      if (adminLogoutBtn) {
+        adminLogoutBtn.addEventListener('click', () => {
+          setAdminState(false);
+          showToast('Logged out of admin mode', '🔒');
+          if (adminModal) adminModal.classList.add('hidden');
+        });
+      }
+
+      const saveNewPwBtn = document.getElementById('saveNewAdminPwBtn');
+      const changePwInp = document.getElementById('changeAdminPwInput');
+      if (saveNewPwBtn && changePwInp) {
+        saveNewPwBtn.addEventListener('click', () => {
+          const newPw = changePwInp.value.trim();
+          if (newPw.length < 4) {
+            showToast('Password must be at least 4 chars', '⚠️');
+            return;
+          }
+          localStorage.setItem('leisure_admin_pw', newPw);
+          changePwInp.value = '';
+          showToast('Admin password updated successfully!', '🔑');
+        });
+      }
+
+      loadState();
+
+      // Set initial status bar time
+      const sbTime = document.getElementById('statusBarTime');
+      if (sbTime) {
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        sbTime.textContent = `${h}:${m}`;
+      }
+
+      // Initial Renders
+      renderProfilesCarousel();
+      renderActivitiesList();
+      renderFullProfilesList();
+      renderStats();
+
+      // Bottom Navigation items
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tab = btn.getAttribute('data-nav');
+          switchTab(tab);
+        });
+      });
+
+      // FAB and Add Buttons
+      const fab = document.getElementById('fabAddActivityBtn');
+      if (fab) fab.addEventListener('click', openAddActivityModal);
+
+      const emptyAddBtn = document.getElementById('emptyAddActivityBtn');
+      if (emptyAddBtn) emptyAddBtn.addEventListener('click', openAddActivityModal);
+
+      const closeActBtn = document.getElementById('closeAddActivityModalBtn');
+      if (closeActBtn) closeActBtn.addEventListener('click', closeAddActivityModal);
+
+      const openProfileHeaderBtn = document.getElementById('openNewProfileHeaderBtn');
+      if (openProfileHeaderBtn) {
+        openProfileHeaderBtn.addEventListener('click', () => {
+          if (!isAdmin) {
+            showToast('Admin login required to add a profile 🛡️', '🔒');
+            const adminModal = document.getElementById('adminAuthModal');
+            if (adminModal) adminModal.classList.remove('hidden');
+            return;
+          }
+          openAddProfileModal();
+        });
+      }
+
+
+
+      const closeProfileModalBtn = document.getElementById('closeAddProfileModalBtn');
+      if (closeProfileModalBtn) closeProfileModalBtn.addEventListener('click', closeAddProfileModal);
+
+      // Search Input
+      const searchInp = document.getElementById('searchInput');
+      const clearSearchBtn = document.getElementById('clearSearchBtn');
+      if (searchInp) {
+        searchInp.addEventListener('input', (e) => {
+          searchQuery = e.target.value;
+          if (clearSearchBtn) {
+            clearSearchBtn.classList.toggle('hidden', searchQuery.length === 0);
+          }
+          renderActivitiesList();
+        });
+      }
+
+      if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', () => {
+          if (searchInp) searchInp.value = '';
+          searchQuery = '';
+          clearSearchBtn.classList.add('hidden');
+          renderActivitiesList();
+        });
+      }
+
+      // Date Chips
+      document.querySelectorAll('.date-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const filter = btn.getAttribute('data-date-filter');
+          if (!filter) return; // custom date button handles input
+
+          selectedDateFilter = filter;
+          customFilterDate = '';
+          const customLabel = document.getElementById('customDateLabel');
+          if (customLabel) customLabel.textContent = 'Custom Date';
+
+          document.querySelectorAll('.date-chip').forEach(b => {
+            b.classList.remove('active-chip', 'bg-purple-600', 'text-white');
+            b.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+          });
+          btn.classList.add('active-chip', 'bg-purple-600', 'text-white');
+          btn.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+
+          renderActivitiesList();
+        });
+      });
+
+      // Custom Date Input
+      const customDateInp = document.getElementById('customDateFilterInput');
+      const customDateLabel = document.getElementById('customDateLabel');
+      const customDateBtn = document.getElementById('customDateBtn');
+      if (customDateInp) {
+        customDateInp.addEventListener('change', (e) => {
+          if (e.target.value) {
+            selectedDateFilter = 'custom';
+            customFilterDate = e.target.value;
+            if (customDateLabel) customDateLabel.textContent = e.target.value;
+
+            document.querySelectorAll('.date-chip').forEach(b => {
+              b.classList.remove('active-chip', 'bg-purple-600', 'text-white');
+              b.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+            });
+            if (customDateBtn) {
+              customDateBtn.classList.add('active-chip', 'bg-purple-600', 'text-white');
+              customDateBtn.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+            }
+            renderActivitiesList();
+          }
+        });
+      }
+
+      // Reset All Filters
+      const resetBtn = document.getElementById('resetAllFiltersBtn');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          selectedProfileFilter = 'all';
+          selectedDateFilter = 'all';
+          customFilterDate = '';
+          searchQuery = '';
+          if (searchInp) searchInp.value = '';
+          if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
+          if (customDateLabel) customDateLabel.textContent = 'Custom Date';
+
+          document.querySelectorAll('.date-chip').forEach(b => {
+            b.classList.remove('active-chip', 'bg-purple-600', 'text-white');
+            b.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+          });
+          const allDatesChip = document.querySelector('[data-date-filter="all"]');
+          if (allDatesChip) {
+            allDatesChip.classList.add('active-chip', 'bg-purple-600', 'text-white');
+            allDatesChip.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+          }
+
+
+
+          renderProfilesCarousel();
+          renderActivitiesList();
+          showToast('Filters cleared', '🔄');
+        });
+      }
+
+      // Load Custom Categories
+      loadCustomCategories();
+      renderCategoryPicker();
+
+      // Custom Category Modal Wiring
+      const openAddCatBtn = document.getElementById('openAddCategoryBtn');
+      const addCatModal = document.getElementById('addCategoryModal');
+      const closeAddCatBtn = document.getElementById('closeAddCategoryModalBtn');
+      const customCatForm = document.getElementById('customCategoryForm');
+      const catNameInp = document.getElementById('catNameInput');
+      const catEmojiInp = document.getElementById('catEmojiInput');
+
+      if (openAddCatBtn && addCatModal) {
+        openAddCatBtn.addEventListener('click', () => {
+          if (!isAdmin) {
+            showToast('Admin login required to add categories 🛡️', '🔒');
+            const adminModal = document.getElementById('adminAuthModal');
+            if (adminModal) adminModal.classList.remove('hidden');
+            return;
+          }
+          if (catNameInp) catNameInp.value = '';
+          addCatModal.classList.remove('hidden');
+        });
+      }
+
+      if (closeAddCatBtn && addCatModal) {
+        closeAddCatBtn.addEventListener('click', () => {
+          addCatModal.classList.add('hidden');
+        });
+      }
+
+      document.querySelectorAll('.emoji-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (catEmojiInp) catEmojiInp.value = btn.getAttribute('data-emoji') || '🎯';
+        });
+      });
+
+      if (customCatForm) {
+        customCatForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const name = catNameInp ? catNameInp.value.trim() : '';
+          const icon = (catEmojiInp && catEmojiInp.value.trim()) ? catEmojiInp.value.trim() : '🎯';
+          if (!name) return;
+
+          const newCat = { id: 'cat-' + Date.now(), name, icon };
+          customCategories.push(newCat);
+          syncCategoryToCloud(newCat);
+          saveCustomCategories();
+          selectedFormCategory = name;
+          renderCategoryPicker();
+          if (addCatModal) addCatModal.classList.add('hidden');
+          showToast(`Category "${name}" created!`, '✨');
+        });
+      }
+
+      // PWA Install Prompt Listener
+      let deferredInstallPrompt = null;
+      const installBtn = document.getElementById('pwaInstallBtn');
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        if (installBtn) installBtn.classList.remove('hidden');
+      });
+
+      if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+          if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            const { outcome } = await deferredInstallPrompt.userChoice;
+            if (outcome === 'accepted') {
+              installBtn.classList.add('hidden');
+            }
+            deferredInstallPrompt = null;
+          } else {
+            showToast('Tap browser menu (⋮ or Share) -> Add to Home Screen', '📲');
+          }
+        });
+      }
+
+      // Register Service Worker if supported
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      }
+
+      // Avatar Color Selection in Add Profile Modal
+      document.querySelectorAll('.avatar-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedAvatarColor = btn.getAttribute('data-color') || 'purple';
+          document.querySelectorAll('.avatar-option').forEach(b => {
+            b.classList.remove('ring-2', 'ring-purple-600', 'ring-offset-2', 'dark:ring-offset-slate-900');
+          });
+          btn.classList.add('ring-2', 'ring-purple-600', 'ring-offset-2', 'dark:ring-offset-slate-900');
+        });
+      });
+
+      // Submit Add Activity Form
+      const actForm = document.getElementById('activityForm');
+      if (actForm) {
+        actForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const titleInp = document.getElementById('activityTitleInput');
+          const dateInp = document.getElementById('activityDateInput');
+          const timeInp = document.getElementById('activityTimeInput');
+          const durInp = document.getElementById('activityDurationInput');
+          const notesInp = document.getElementById('activityNotesInput');
+
+          if (!titleInp || !titleInp.value.trim()) return;
+
+          const allCats = getAllCategories();
+          const foundCat = allCats.find(c => c.name === selectedFormCategory);
+          const catIcon = foundCat ? foundCat.icon : '🎯';
+
+          if (editingActivityId) {
+            // Edit existing activity
+            const index = activities.findIndex(a => a.id === editingActivityId);
+            if (index !== -1) {
+              activities[index] = {
+                ...activities[index],
+                profileId: selectedFormProfileId,
+                title: titleInp.value.trim(),
+                category: selectedFormCategory,
+                categoryIcon: catIcon,
+                date: dateInp.value || todayStr,
+                time: timeInp.value || '12:00',
+                duration: durInp ? durInp.value : '1h',
+                notes: notesInp ? notesInp.value.trim() : ''
+              };
+              syncActivityToCloud(activities[index]);
+            }
+            editingActivityId = null;
+            showToast('Activity updated!', '✨');
+          } else {
+            // Create new activity
+            const newActivity = {
+              id: 'act-' + Date.now(),
+              profileId: selectedFormProfileId,
+              title: titleInp.value.trim(),
+              category: selectedFormCategory,
+              categoryIcon: catIcon,
+              date: dateInp.value || todayStr,
+              time: timeInp.value || '12:00',
+              duration: durInp ? durInp.value : '1h',
+              notes: notesInp ? notesInp.value.trim() : ''
+            };
+            activities.unshift(newActivity);
+            syncActivityToCloud(newActivity);
+            showToast('Activity saved!', '✨');
+          }
+
+          saveState();
+          closeAddActivityModal();
+          titleInp.value = '';
+          if (notesInp) notesInp.value = '';
+
+          renderActivitiesList();
+          renderStats();
+        });
+      }
+
+      // Submit Add Profile Form
+      const profForm = document.getElementById('profileForm');
+      if (profForm) {
+        profForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const nameInp = document.getElementById('profileNameInput');
+          const hobbyInp = document.getElementById('profileHobbyInput');
+
+          if (!nameInp || !nameInp.value.trim()) return;
+
+          const name = nameInp.value.trim();
+          const newProfile = {
+            id: 'p-' + Date.now(),
+            name: name,
+            color: selectedAvatarColor,
+            hobby: hobbyInp ? hobbyInp.value.trim() : 'Leisure enthusiast',
+            avatarText: name.charAt(0).toUpperCase()
+          };
+
+          profiles.push(newProfile);
+          syncProfileToCloud(newProfile);
+          selectedProfileFilter = newProfile.id; // automatically select newly created profile
+          selectedFormProfileId = newProfile.id;
+          saveState();
+          closeAddProfileModal();
+          nameInp.value = '';
+          if (hobbyInp) hobbyInp.value = '';
+
+          renderProfilesCarousel();
+          renderFullProfilesList();
+          renderActivitiesList();
+          showToast(`Profile "${name}" created!`, '👤');
+        });
+      }
+
+      // Dark / Light Theme Toggle
+      const themeBtn = document.getElementById('themeToggleBtn');
+      if (themeBtn) {
+        themeBtn.addEventListener('click', () => {
+          document.documentElement.classList.toggle('dark');
+          const isDark = document.documentElement.classList.contains('dark');
+          showToast(isDark ? 'Dark theme enabled' : 'Light theme enabled', isDark ? '🌙' : '☀️');
+        });
+      }
+    });
+  </script>
+</body>
+</html>

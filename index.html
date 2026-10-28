@@ -520,8 +520,8 @@
           <form id="adminLoginForm" class="space-y-3.5">
             <div>
               <label for="adminPasswordInput" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Admin Password / PIN</label>
-              <input type="password" id="adminPasswordInput" required placeholder="Enter password (default: admin123)" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
-              <p class="text-[10px] text-slate-400 mt-1">Default passcode is <span class="font-mono font-bold text-purple-600 dark:text-purple-400">admin123</span></p>
+              <input type="password" id="adminPasswordInput" required placeholder="Enter admin password" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
+              
             </div>
 
             <div id="adminErrorMsg" class="hidden text-xs text-rose-500 font-semibold">Incorrect password. Please try again.</div>
@@ -532,11 +532,18 @@
           </form>
         </div>
 
-        <div id="adminLoggedInSection" class="hidden space-y-3.5 pt-1">
+        <div id="adminLoggedInSection" class="hidden space-y-3 pt-1">
           <div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-800 dark:text-emerald-300">
-            <span class="font-bold">✓ Logged in as Admin</span>. You can now delete profiles and manage all activity permissions.
+            <span class="font-bold">✓ Admin Mode Active</span>. You can add/delete profiles and manage categories.
           </div>
-          <button type="button" id="adminLogoutBtn" class="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 text-slate-700 dark:text-slate-300 rounded-2xl font-bold text-xs transition">
+          <div class="space-y-1.5">
+            <label for="changeAdminPwInput" class="block text-[11px] font-bold text-slate-600 dark:text-slate-300">Change Admin Password</label>
+            <div class="flex gap-2">
+              <input type="password" id="changeAdminPwInput" placeholder="New password" class="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs">
+              <button type="button" id="saveNewAdminPwBtn" class="px-3 py-1.5 bg-purple-600 text-white rounded-xl text-xs font-bold shrink-0">Update</button>
+            </div>
+          </div>
+          <button type="button" id="adminLogoutBtn" class="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 text-slate-700 dark:text-slate-300 rounded-2xl font-bold text-xs transition">
             Log Out from Admin
           </button>
         </div>
@@ -597,98 +604,16 @@
 
   <!-- Interactive JavaScript Logic -->
   <script>
-    // Initial Seed Data
-    const INITIAL_PROFILES = [
-      { id: 'p1', name: 'Alex', color: 'purple', hobby: 'Acoustic Guitar & Coffee', avatarText: 'A' },
-      { id: 'p2', name: 'Sarah', color: 'emerald', hobby: 'Sci-Fi Reading & Tea', avatarText: 'S' },
-      { id: 'p3', name: 'Maya', color: 'amber', hobby: 'Indie RPG Gaming & Art', avatarText: 'M' }
-    ];
+    // No hardcoded data: start clean and sync live with Supabase
+    const INITIAL_PROFILES = [];
+    const INITIAL_ACTIVITIES = [];
 
-    // Current date helpers for realistic pre-filled entries
     const now = new Date();
     const formatDateStr = (d) => d.toISOString().split('T')[0];
     const todayStr = formatDateStr(now);
     const yesterdayDate = new Date(now);
     yesterdayDate.setDate(now.getDate() - 1);
     const yesterdayStr = formatDateStr(yesterdayDate);
-    const twoDaysAgo = new Date(now);
-    twoDaysAgo.setDate(now.getDate() - 2);
-    const twoDaysAgoStr = formatDateStr(twoDaysAgo);
-
-    const INITIAL_ACTIVITIES = [
-      {
-        id: 'act-1',
-        profileId: 'p1',
-        title: 'Acoustic Guitar Session',
-        category: 'Creative & Music',
-        categoryIcon: '🎸',
-        categoryColor: 'rose',
-        date: todayStr,
-        time: '18:30',
-        duration: '1h 30m',
-        notes: 'Learned fingerpicking pattern for new folk song'
-      },
-      {
-        id: 'act-2',
-        profileId: 'p2',
-        title: 'Sci-Fi Novel Reading',
-        category: 'Reading',
-        categoryIcon: '📚',
-        categoryColor: 'purple',
-        date: todayStr,
-        time: '20:15',
-        duration: '1h',
-        notes: 'Finished chapters 11 & 12 of Dune Messiah'
-      },
-      {
-        id: 'act-3',
-        profileId: 'p3',
-        title: 'Weekend RPG Gaming',
-        category: 'Gaming',
-        categoryIcon: '🎮',
-        categoryColor: 'indigo',
-        date: yesterdayStr,
-        time: '14:00',
-        duration: '2h 15m',
-        notes: 'Co-op campaign exploration with guild'
-      },
-      {
-        id: 'act-4',
-        profileId: 'p1',
-        title: 'Specialty Coffee Tasting',
-        category: 'Café & Dining',
-        categoryIcon: '☕',
-        categoryColor: 'amber',
-        date: yesterdayStr,
-        time: '10:30',
-        duration: '45m',
-        notes: 'Tried Ethiopian pour-over at Third Wave'
-      },
-      {
-        id: 'act-5',
-        profileId: 'p2',
-        title: 'Studio Ghibli Movie Night',
-        category: 'Movies & TV',
-        categoryIcon: '🎬',
-        categoryColor: 'sky',
-        date: twoDaysAgoStr,
-        time: '21:00',
-        duration: '2h',
-        notes: 'Rewatched Spirited Away with herbal tea'
-      },
-      {
-        id: 'act-6',
-        profileId: 'p3',
-        title: 'Botanical Garden Stroll',
-        category: 'Outdoor & Strolls',
-        categoryIcon: '🌿',
-        categoryColor: 'emerald',
-        date: twoDaysAgoStr,
-        time: '16:00',
-        duration: '1h 15m',
-        notes: 'Took relaxing film photos of orchids'
-      }
-    ];
 
     // State Management
     
@@ -739,11 +664,12 @@
     let editingActivityId = null;
     const DEFAULT_CATEGORIES = [
       { name: 'Reading', icon: '📚' },
-      { name: 'Gaming', icon: '🎮' },
-      { name: 'Café & Dining', icon: '☕' },
+      { name: 'Shopping', icon: '🛍️' },
+      { name: 'Casual leave', icon: '📅' },
+      { name: 'Treatment', icon: '🩺' },
       { name: 'Creative & Music', icon: '🎸' },
-      { name: 'Movies & TV', icon: '🎬' },
-      { name: 'Outdoor & Strolls', icon: '🌿' }
+      { name: 'Travel', icon: '🚗' },
+      { name: 'Outdoor activity', icon: '🌿' }
     ];
     let customCategories = [];
 
@@ -773,14 +699,21 @@
       const allCats = getAllCategories();
       container.innerHTML = allCats.map(cat => {
         const isSelected = selectedFormCategory === cat.name;
+        const isCustom = customCategories.some(c => c.name === cat.name);
         return `
-          <button type="button" data-cat="${cat.name}" class="cat-chip py-2 px-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
-            isSelected
-              ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold'
-              : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300'
-          }">
-            <span>${cat.icon}</span><span class="truncate">${cat.name}</span>
-          </button>
+          <div class="relative group/cat flex items-center">
+            <button type="button" data-cat="${cat.name}" class="cat-chip w-full py-2 px-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
+              isSelected
+                ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold'
+                : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300'
+            }">
+              <span>${cat.icon}</span><span class="truncate">${cat.name}</span>
+            </button>
+            ${(isAdmin && isCustom) ? `
+            <button type="button" data-delete-cat="${cat.name}" title="Delete Category" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 hover:bg-rose-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs transition z-10">
+              ✕
+            </button>` : ''}
+          </div>
         `;
       }).join('');
 
@@ -788,6 +721,19 @@
         btn.addEventListener('click', () => {
           selectedFormCategory = btn.getAttribute('data-cat') || 'Reading';
           renderCategoryPicker();
+        });
+      });
+
+      container.querySelectorAll('[data-delete-cat]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const catName = btn.getAttribute('data-delete-cat');
+          customCategories = customCategories.filter(c => c.name !== catName);
+          saveCustomCategories();
+          deleteCategoryFromCloud(catName);
+          if (selectedFormCategory === catName) selectedFormCategory = 'Reading';
+          renderCategoryPicker();
+          showToast(`Category "${catName}" deleted`, '🗑️');
         });
       });
     }
@@ -845,30 +791,84 @@
       }
     }
 
+    let realtimeSubscribed = false;
+
     async function syncFromCloud() {
       if (!supabaseClient) return;
       try {
-        const { data: cloudProfiles, error: pErr } = await supabaseClient.from('profiles').select('*');
-        if (!pErr && cloudProfiles && cloudProfiles.length > 0) {
-          profiles = cloudProfiles;
+        // Fetch profiles
+        const { data: rawProfiles, error: pErr } = await supabaseClient.from('profiles').select('*');
+        if (!pErr && rawProfiles) {
+          profiles = rawProfiles.map(p => ({
+            id: p.id,
+            name: p.name,
+            color: p.color || 'purple',
+            hobby: p.hobby || '',
+            avatarText: p.avatartext || p.avatarText || (p.name ? p.name.charAt(0).toUpperCase() : 'A')
+          }));
         }
-        const { data: cloudActivities, error: aErr } = await supabaseClient.from('activities').select('*').order('date', { ascending: false });
-        if (!aErr && cloudActivities && cloudActivities.length > 0) {
-          activities = cloudActivities;
+
+        // Fetch activities
+        const { data: rawActivities, error: aErr } = await supabaseClient.from('activities').select('*').order('date', { ascending: false });
+        if (!aErr && rawActivities) {
+          activities = rawActivities.map(a => ({
+            id: a.id,
+            profileId: a.profileid || a.profileId || '',
+            title: a.title,
+            category: a.category,
+            categoryIcon: a.categoryicon || a.categoryIcon || '🎯',
+            date: a.date,
+            time: a.time,
+            duration: a.duration || '1h',
+            notes: a.notes || ''
+          }));
         }
+
+        // Fetch custom categories
+        const { data: rawCats, error: cErr } = await supabaseClient.from('categories').select('*');
+        if (!cErr && rawCats && rawCats.length > 0) {
+          customCategories = rawCats.map(c => ({ id: c.id, name: c.name, icon: c.icon }));
+          saveCustomCategories();
+          renderCategoryPicker();
+        }
+
         saveState();
         renderProfilesCarousel();
+        renderFullProfilesList();
         renderActivitiesList();
         renderStats();
+
+        // Subscribe to real-time changes across all connected devices
+        if (!realtimeSubscribed) {
+          realtimeSubscribed = true;
+          supabaseClient
+            .channel('public:realtime_tracker')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => syncFromCloud())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, () => syncFromCloud())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => syncFromCloud())
+            .subscribe();
+        }
       } catch (e) {
-        console.warn('Cloud fetch failed, using local cache:', e);
+        console.warn('Cloud sync error:', e);
       }
     }
 
     async function syncActivityToCloud(activity) {
       if (!supabaseClient) return;
       try {
-        await supabaseClient.from('activities').upsert([activity]);
+        const payload = {
+          id: activity.id,
+          profileid: activity.profileId,
+          title: activity.title,
+          category: activity.category,
+          categoryicon: activity.categoryIcon || '🎯',
+          date: activity.date,
+          time: activity.time,
+          duration: activity.duration || '1h',
+          notes: activity.notes || ''
+        };
+        const { error } = await supabaseClient.from('activities').upsert([payload]);
+        if (error) console.error('Supabase activity error:', error.message);
       } catch (e) {
         console.warn('Failed to push activity to cloud:', e);
       }
@@ -877,18 +877,25 @@
     async function syncProfileToCloud(profile) {
       if (!supabaseClient) return;
       try {
-        await supabaseClient.from('profiles').upsert([profile]);
+        const payload = {
+          id: profile.id,
+          name: profile.name,
+          color: profile.color || 'purple',
+          hobby: profile.hobby || '',
+          avatartext: profile.avatarText || profile.name.charAt(0).toUpperCase()
+        };
+        const { error } = await supabaseClient.from('profiles').upsert([payload]);
+        if (error) console.error('Supabase profile error:', error.message);
       } catch (e) {
         console.warn('Failed to push profile to cloud:', e);
       }
     }
 
-    
     async function deleteProfileFromCloud(profileId) {
       if (!supabaseClient) return;
       try {
         await supabaseClient.from('profiles').delete().eq('id', profileId);
-        await supabaseClient.from('activities').delete().eq('profileId', profileId);
+        await supabaseClient.from('activities').delete().eq('profileid', profileId);
       } catch (e) {
         console.warn('Failed to delete profile from cloud:', e);
       }
@@ -900,6 +907,24 @@
         await supabaseClient.from('activities').delete().eq('id', activityId);
       } catch (e) {
         console.warn('Failed to delete activity from cloud:', e);
+      }
+    }
+
+    async function syncCategoryToCloud(cat) {
+      if (!supabaseClient) return;
+      try {
+        await supabaseClient.from('categories').upsert([{ id: cat.id || 'cat-' + Date.now(), name: cat.name, icon: cat.icon }]);
+      } catch (e) {
+        console.warn('Failed to push category to cloud:', e);
+      }
+    }
+
+    async function deleteCategoryFromCloud(catName) {
+      if (!supabaseClient) return;
+      try {
+        await supabaseClient.from('categories').delete().eq('name', catName);
+      } catch (e) {
+        console.warn('Failed to delete category from cloud:', e);
       }
     }
 
@@ -994,10 +1019,15 @@
       if (!selectEl) return;
 
       // Populate dropdown options (name only)
-      let optionsHtml = `<option value="all">Everyone</option>`;
-      profiles.forEach(p => {
-        optionsHtml += `<option value="${p.id}">${p.name}</option>`;
-      });
+      let optionsHtml = '';
+      if (profiles.length === 0) {
+        optionsHtml = `<option value="all">No Profiles Yet (Admin: Tap + Profile)</option>`;
+      } else {
+        optionsHtml = `<option value="all">Everyone</option>`;
+        profiles.forEach(p => {
+          optionsHtml += `<option value="${p.id}">${p.name}</option>`;
+        });
+      }
       selectEl.innerHTML = optionsHtml;
       selectEl.value = selectedProfileFilter;
 
@@ -1572,6 +1602,21 @@
         });
       }
 
+      const saveNewPwBtn = document.getElementById('saveNewAdminPwBtn');
+      const changePwInp = document.getElementById('changeAdminPwInput');
+      if (saveNewPwBtn && changePwInp) {
+        saveNewPwBtn.addEventListener('click', () => {
+          const newPw = changePwInp.value.trim();
+          if (newPw.length < 4) {
+            showToast('Password must be at least 4 chars', '⚠️');
+            return;
+          }
+          localStorage.setItem('leisure_admin_pw', newPw);
+          changePwInp.value = '';
+          showToast('Admin password updated successfully!', '🔑');
+        });
+      }
+
       loadState();
 
       // Set initial status bar time
@@ -1607,7 +1652,17 @@
       if (closeActBtn) closeActBtn.addEventListener('click', closeAddActivityModal);
 
       const openProfileHeaderBtn = document.getElementById('openNewProfileHeaderBtn');
-      if (openProfileHeaderBtn) openProfileHeaderBtn.addEventListener('click', openAddProfileModal);
+      if (openProfileHeaderBtn) {
+        openProfileHeaderBtn.addEventListener('click', () => {
+          if (!isAdmin) {
+            showToast('Admin login required to add a profile 🛡️', '🔒');
+            const adminModal = document.getElementById('adminAuthModal');
+            if (adminModal) adminModal.classList.remove('hidden');
+            return;
+          }
+          openAddProfileModal();
+        });
+      }
 
 
 
@@ -1756,7 +1811,9 @@
           const icon = (catEmojiInp && catEmojiInp.value.trim()) ? catEmojiInp.value.trim() : '🎯';
           if (!name) return;
 
-          customCategories.push({ name, icon });
+          const newCat = { id: 'cat-' + Date.now(), name, icon };
+          customCategories.push(newCat);
+          syncCategoryToCloud(newCat);
           saveCustomCategories();
           selectedFormCategory = name;
           renderCategoryPicker();
