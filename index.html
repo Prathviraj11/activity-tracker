@@ -594,6 +594,27 @@
         </form>
       </div>
     </div>
+    <!-- MODAL: DELETE / DESTRUCTIVE ACTION CONFIRMATION -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden animate-fade-in">
+      <div class="w-full max-w-sm bg-white dark:bg-[#1E1B24] rounded-3xl shadow-2xl p-5 animate-slide-up border border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center text-base">
+            ⚠️
+          </div>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">Please Confirm</h3>
+        </div>
+        <p id="confirmMessage" class="text-xs text-slate-600 dark:text-slate-300 mb-4">Are you sure you want to do this?</p>
+        <div class="flex gap-2.5">
+          <button type="button" id="confirmCancelBtn" class="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-xs transition">
+            Cancel
+          </button>
+          <button type="button" id="confirmOkBtn" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white rounded-2xl font-bold text-xs shadow-md transition">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- TOAST NOTIFICATION -->
     <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-medium shadow-lg z-50 flex items-center gap-2 hidden transition-all duration-300">
       <span id="toastIcon">✨</span>
@@ -657,6 +678,9 @@
       }
       if (loginSec) loginSec.classList.toggle('hidden', isAdmin);
       if (loggedSec) loggedSec.classList.toggle('hidden', !isAdmin);
+
+      // Disconnect Supabase is an admin-only control
+      updateCloudUIState(cloudSyncEnabled);
     }
 
     
@@ -725,9 +749,11 @@
       });
 
       container.querySelectorAll('[data-delete-cat]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const catName = btn.getAttribute('data-delete-cat');
+          const confirmed = await showConfirm(`Delete category "${catName}"? Activities using it will keep their category.`);
+          if (!confirmed) return;
           customCategories = customCategories.filter(c => c.name !== catName);
           saveCustomCategories();
           deleteCategoryFromCloud(catName);
@@ -783,7 +809,7 @@
         statusLabel.textContent = connected ? 'Mode: Live Cloud Sync 🟢' : 'Mode: Local Storage (Offline) ⚪';
         statusLabel.className = connected ? 'font-bold text-emerald-600 dark:text-emerald-400 text-xs' : 'font-semibold text-slate-500 text-xs';
       }
-      if (disconnectBtn) disconnectBtn.classList.toggle('hidden', !connected);
+      if (disconnectBtn) disconnectBtn.classList.toggle('hidden', !connected || !isAdmin);
       if (cloudBtn) {
         cloudBtn.className = connected
           ? 'w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center transition shadow-xs'
@@ -1007,6 +1033,35 @@
       setTimeout(() => {
         toast.classList.add('hidden');
       }, 2600);
+    }
+
+    // Confirmation dialog for destructive actions (returns a Promise<boolean>)
+    function showConfirm(message, okLabel = 'Delete') {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('confirmModal');
+        if (!modal) { resolve(true); return; }
+        const msgEl = document.getElementById('confirmMessage');
+        const okBtn = document.getElementById('confirmOkBtn');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+        if (msgEl) msgEl.textContent = message;
+        if (okBtn) okBtn.textContent = okLabel;
+
+        const close = (result) => {
+          modal.classList.add('hidden');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          modal.removeEventListener('click', onBackdrop);
+          resolve(result);
+        };
+        const onOk = () => close(true);
+        const onCancel = () => close(false);
+        const onBackdrop = (e) => { if (e.target === modal) close(false); };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onBackdrop);
+        modal.classList.remove('hidden');
+      });
     }
 
     // Render Profile Dropdown & Selected Profile View (Top of Feed)
@@ -1236,8 +1291,12 @@
 
       // Wire delete buttons
       container.querySelectorAll('[data-delete-act]').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
           const id = btn.getAttribute('data-delete-act');
+          const act = activities.find(a => a.id === id);
+          const actTitle = act ? (act.title || 'This activity') : 'This activity';
+          const confirmed = await showConfirm(`Delete activity "${actTitle}"? This cannot be undone.`);
+          if (!confirmed) return;
           activities = activities.filter(a => a.id !== id);
           deleteActivityFromCloud(id);
           saveState();
@@ -1294,10 +1353,16 @@
       });
 
       container.querySelectorAll('[data-delete-profile]').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
           const pid = btn.getAttribute('data-delete-profile');
           const profToDelete = profiles.find(p => p.id === pid);
           const pName = profToDelete ? profToDelete.name : 'Profile';
+          const pActivities = activities.filter(a => a.profileId === pid).length;
+          const confirmed = await showConfirm(
+            `Delete profile "${pName}"? This will also remove its ${pActivities} logged activit${pActivities === 1 ? 'y' : 'ies'}.`,
+            'Delete Profile'
+          );
+          if (!confirmed) return;
           profiles = profiles.filter(p => p.id !== pid);
           activities = activities.filter(a => a.profileId !== pid);
           if (selectedProfileFilter === pid) {
