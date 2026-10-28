@@ -1,5 +1,5 @@
 // Activity Tracker Service Worker for Offline Caching
-const CACHE_NAME = 'activity-tracker-v1';
+const CACHE_NAME = 'activity-tracker-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
