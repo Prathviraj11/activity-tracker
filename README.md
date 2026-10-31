@@ -46,6 +46,28 @@ Before cloud sync can save data, your Supabase database needs the tables and per
 
 ---
 
+## 🔐 App Lock & Private Messaging (Supabase Auth)
+
+The app opens behind a full-screen password gate. The gate signs in to a **shared Supabase Auth account** — private messages are enforced **server-side with Row Level Security (RLS)**, so the message data is unreadable without a real sign-in (not just hidden in the UI).
+
+### One-time Supabase setup (2 minutes)
+1. **Dashboard → Authentication → Sign In / Providers → Email**: make sure Email is enabled and **Confirm email is OFF**.
+2. **Dashboard → Authentication → Users → Add user**: create the shared account, e.g. `myfrutvi.team@yourmail.com` + your chosen password (6+ characters).
+3. **Dashboard → SQL Editor**: re-run the full contents of `supabase_schema.sql` (adds the private `messages` table with RLS; safe to re-run).
+4. Open the deployed app → on the lock screen tap **⚙️ Set up sign-in email** → enter the email from step 2 (once per device).
+
+### Daily use
+- **Unlock**: enter the shared sign-in password → full access incl. messages. The tracker's local app password (default `myfrutvi`) also opens the app in **locked/offline mode** where messages stay hidden — useful if the network or the free-tier project is paused.
+- **Messages tab**: pick "Sending as" profile, chat bubbles sync live across devices. All messages are visible to anyone signed in with the shared sign-in password.
+- **Auto-delete**: the 🗑 toggle (on by default) automatically deletes messages older than 1 month whenever the Messages tab loads.
+- **Re-lock**: 🔒 button in the header (clears session, password required again).
+- **Change password**: Admin panel (🛡️) → *Change App Open Password* updates both the local app password and the Supabase sign-in password.
+- Unlock lasts until the browser/app session is closed (sessionStorage).
+
+> Note: Free plan projects pause after 1 week without activity — open the app weekly, or press **Restore** in the Supabase dashboard if messages stop syncing.
+
+---
+
 ## 📁 Included Files
 - `index.html` - Complete single-page application with pre-configured Supabase keys & Material You styling.
 - `supabase_schema.sql` - Copy-paste migration for Supabase SQL Editor.

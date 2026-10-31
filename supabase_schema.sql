@@ -69,7 +69,7 @@ USING (true)
 WITH CHECK (true);
 
 -- 7. Add tables to Supabase Realtime publication
-DO 31657
+DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_publication_tables 
@@ -91,4 +91,51 @@ BEGIN
     ) THEN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.categories;
     END IF;
-END 31657;
+END $$;
+
+-- 8. MESSAGES Table (Private chat)
+-- SECURITY: Unlike the tables above, messages are NOT publicly readable.
+-- Only sessions that signed in with a password (authenticated role) can
+-- read or write them. The public anon key used by the app gets nothing.
+CREATE TABLE IF NOT EXISTS public.messages (
+    id TEXT PRIMARY KEY,
+    profileid TEXT NOT NULL,
+    message TEXT NOT NULL,
+    createdat TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_createdat ON public.messages(createdat DESC);
+
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Signed in users can read messages" ON public.messages;
+DROP POLICY IF EXISTS "Signed in users can send messages" ON public.messages;
+
+CREATE POLICY "Signed in users can read messages"
+ON public.messages
+FOR SELECT
+TO authenticated
+USING (true);
+
+CREATE POLICY "Signed in users can send messages"
+ON public.messages
+FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+CREATE POLICY "Signed in users can delete messages"
+ON public.messages
+FOR DELETE
+TO authenticated
+USING (true);
+
+-- Add messages to Realtime publication (realtime still enforces RLS)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'messages'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+    END IF;
+END $$;
