@@ -133,22 +133,18 @@
         <div id="lockErrorMsg" class="hidden text-xs text-rose-300 font-semibold">Incorrect password. Please try again.</div>
         <button type="submit" id="lockUnlockBtn" class="w-full py-3 bg-white text-purple-700 hover:bg-purple-50 active:scale-[0.98] rounded-2xl font-bold text-sm shadow-md transition">Unlock</button>
       </form>
-      <button type="button" id="gateSetupBtn" class="mt-4 text-[11px] font-semibold text-purple-200/80 hover:text-white underline transition">⚙️ Set up sign-in email</button>
     </div>
   </div>
 
   <script>
-    // App Password Gate: signs in to Supabase Auth (private messages need a real session),
-    // with a local app-password fallback so the tracker always stays usable offline.
+    // App Password Gate: local common-password unlock. Message sign-in happens
+    // separately inside the Messages tab (Supabase Auth + RLS protect that data).
     (function () {
       'use strict';
       const DEFAULT_GATE_PASSWORD = 'myfrutvi';
       const GATE_PW_KEY = 'leisure_gate_pw';
       const GATE_UNLOCK_KEY = 'leisure_app_unlocked';
-      const AUTH_EMAIL_KEY = 'leisure_auth_email';
-      const DEFAULT_AUTH_EMAIL = 'shared.app@activitytracker.app';
       const DEFAULT_SUPABASE_URL = 'https://aqdrigusidpfsqeidwux.supabase.co';
-      const DEFAULT_SUPABASE_KEY = 'sb_publishable_wIB4pyCSIl6hKA8ahK5YoA_iIMMqyHn';
 
       function sha256Hex(str) {
         if (!(window.crypto && window.crypto.subtle)) return Promise.resolve(null);
@@ -157,22 +153,6 @@
             return b.toString(16).padStart(2, '0');
           }).join('');
         });
-      }
-
-      function getGateClient() {
-        if (!(window.supabase && window.supabase.createClient)) return null;
-        if (!window.__gateClient) {
-          try {
-            const url = localStorage.getItem('leisure_supabase_url') || DEFAULT_SUPABASE_URL;
-            const key = localStorage.getItem('leisure_supabase_key') || DEFAULT_SUPABASE_KEY;
-            window.__gateClient = window.supabase.createClient(url, key);
-          } catch (e) { return null; }
-        }
-        return window.__gateClient;
-      }
-
-      function getAuthEmail() {
-        try { return (localStorage.getItem(AUTH_EMAIL_KEY) || DEFAULT_AUTH_EMAIL).trim(); } catch (e) { return DEFAULT_AUTH_EMAIL; }
       }
 
       function clearAuthSession() {
@@ -230,22 +210,9 @@
             e.preventDefault();
             const pw = lockInput ? lockInput.value : '';
             if (!pw) return;
-            if (lockBtnEl) { lockBtnEl.disabled = true; lockBtnEl.textContent = 'Checking\u2026'; }
-            function done() { if (lockBtnEl) { lockBtnEl.disabled = false; lockBtnEl.textContent = 'Unlock'; } }
-            function tryLocal() {
-              localPasswordCheck(pw, function (ok) {
-                if (ok) { unlockApp(); } else { showLockError('Incorrect password. Please try again.'); }
-                done();
-              });
-            }
-
-            const client = getGateClient();
-            if (!client) { tryLocal(); return; }
-
-            client.auth.signInWithPassword({ email: getAuthEmail(), password: pw }).then(function (res) {
-              if (res.data && res.data.session) { unlockApp(); done(); }
-              else { tryLocal(); } // not signed in: fall back to local app password
-            }).catch(function () { tryLocal(); }); // network down: offline unlock possible
+            localPasswordCheck(pw, function (ok) {
+              if (ok) { unlockApp(); } else { showLockError('Incorrect password. Please try again.'); }
+            });
           });
         }
 
@@ -259,18 +226,6 @@
           });
         }
 
-        // One-time setup: the shared sign-in email
-        const gateSetupBtn = document.getElementById('gateSetupBtn');
-        if (gateSetupBtn) {
-          gateSetupBtn.addEventListener('click', function () {
-            const em = window.prompt('Shared sign-in email (your Supabase Auth user):', getAuthEmail());
-            if (em && em.trim()) {
-              try { localStorage.setItem(AUTH_EMAIL_KEY, em.trim().toLowerCase()); } catch (e) {}
-              window.alert('Sign-in email saved: ' + em.trim().toLowerCase());
-            }
-          });
-        }
-
         // Change app open password (from Admin panel)
         const saveGatePwBtn = document.getElementById('saveGatePwBtn');
         if (saveGatePwBtn) {
@@ -279,32 +234,14 @@
             const msg = document.getElementById('gatePwUpdateMsg');
             const newPw = inp ? inp.value.trim() : '';
             if (!newPw) return;
-            function showMsg(text, ok) {
-              if (!msg) return;
-              msg.textContent = text;
-              msg.classList.toggle('text-emerald-600', !!ok);
-              msg.classList.toggle('dark:text-emerald-400', !!ok);
-              msg.classList.toggle('text-amber-600', !ok);
-              msg.classList.toggle('dark:text-amber-400', !ok);
-              msg.classList.remove('hidden');
-              setTimeout(function () { msg.classList.add('hidden'); }, 3500);
-            }
             sha256Hex(newPw).then(function (hash) {
               try { localStorage.setItem(GATE_PW_KEY, hash || ('plain:' + newPw)); } catch (e) {}
               if (inp) inp.value = '';
-              const client = getGateClient();
-              if (!client) { showMsg('\u2713 App password updated', true); return; }
-              client.auth.getSession().then(function (res) {
-                const session = res.data && res.data.session;
-                if (session) {
-                  client.auth.updateUser({ password: newPw }).then(function (r) {
-                    if (r.error) showMsg('\u26A0 Saved as app password. Sign-in password unchanged (' + r.error.message + ')', false);
-                    else showMsg('\u2713 App & sign-in password updated', true);
-                  });
-                } else {
-                  showMsg('\u2713 App password updated (sign in with it on next unlock too)', true);
-                }
-              });
+              if (msg) {
+                msg.textContent = '\u2713 App password updated';
+                msg.classList.remove('hidden');
+                setTimeout(function () { msg.classList.add('hidden'); }, 3500);
+              }
             });
           });
         }

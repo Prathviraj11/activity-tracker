@@ -52,16 +52,19 @@ The app opens behind a full-screen password gate. The gate signs in to a **share
 
 ### One-time Supabase setup (2 minutes)
 1. **Dashboard → Authentication → Sign In / Providers → Email**: make sure Email is enabled and **Confirm email is OFF**.
-2. **Dashboard → Authentication → Users → Add user**: create the shared account, e.g. `myfrutvi.team@yourmail.com` + your chosen password (6+ characters).
+2. **Dashboard → Authentication → Users → Add user** — create the two chat accounts (any password of your choice, 6+ chars):
+   - `praathviraj@gmail.com` → chats as **Prathvi**
+   - `shwetas200020@gmail.com` → chats as **Shwetee**
 3. **Dashboard → SQL Editor**: re-run the full contents of `supabase_schema.sql` (adds the private `messages` table with RLS; safe to re-run).
-4. Open the deployed app → on the lock screen tap **⚙️ Set up sign-in email** → enter the email from step 2 (once per device).
+4. No app configuration needed — each person enters their own email on the Messages tab.
 
 ### Daily use
-- **Unlock**: enter the shared sign-in password → full access incl. messages. The tracker's local app password (default `myfrutvi`) also opens the app in **locked/offline mode** where messages stay hidden — useful if the network or the free-tier project is paused.
-- **Messages tab**: pick "Sending as" profile, chat bubbles sync live across devices. All messages are visible to anyone signed in with the shared sign-in password.
+- **Unlock website**: local app password only (default `myfrutvi`) — fast, no email needed.
+- **Messages**: open the Messages tab → enter the shared account **email + password** → **🔓 Show Messages** loads the chat (Supabase session kept until you re-lock with the 🔒 button). All messages are visible to anyone signed in.
+- **Chat**: pick "Sending as" profile, bubbles sync live across devices.
 - **Auto-delete**: the 🗑 toggle (on by default) automatically deletes messages older than 1 month whenever the Messages tab loads.
-- **Re-lock**: 🔒 button in the header (clears session, password required again).
-- **Change password**: Admin panel (🛡️) → *Change App Open Password* updates both the local app password and the Supabase sign-in password.
+- **Re-lock**: 🔒 button in the header (clears the sign-in session too; passwords required again).
+- **Change app password**: Admin panel (🛡️) → *Change App Open Password*.
 - Unlock lasts until the browser/app session is closed (sessionStorage).
 
 > Note: Free plan projects pause after 1 week without activity — open the app weekly, or press **Restore** in the Supabase dashboard if messages stop syncing.

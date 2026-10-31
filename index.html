@@ -133,22 +133,18 @@
         <div id="lockErrorMsg" class="hidden text-xs text-rose-300 font-semibold">Incorrect password. Please try again.</div>
         <button type="submit" id="lockUnlockBtn" class="w-full py-3 bg-white text-purple-700 hover:bg-purple-50 active:scale-[0.98] rounded-2xl font-bold text-sm shadow-md transition">Unlock</button>
       </form>
-      <button type="button" id="gateSetupBtn" class="mt-4 text-[11px] font-semibold text-purple-200/80 hover:text-white underline transition">⚙️ Set up sign-in email</button>
     </div>
   </div>
 
   <script>
-    // App Password Gate: signs in to Supabase Auth (private messages need a real session),
-    // with a local app-password fallback so the tracker always stays usable offline.
+    // App Password Gate: local common-password unlock. Message sign-in happens
+    // separately inside the Messages tab (Supabase Auth + RLS protect that data).
     (function () {
       'use strict';
       const DEFAULT_GATE_PASSWORD = 'myfrutvi';
       const GATE_PW_KEY = 'leisure_gate_pw';
       const GATE_UNLOCK_KEY = 'leisure_app_unlocked';
-      const AUTH_EMAIL_KEY = 'leisure_auth_email';
-      const DEFAULT_AUTH_EMAIL = 'shared.app@activitytracker.app';
       const DEFAULT_SUPABASE_URL = 'https://aqdrigusidpfsqeidwux.supabase.co';
-      const DEFAULT_SUPABASE_KEY = 'sb_publishable_wIB4pyCSIl6hKA8ahK5YoA_iIMMqyHn';
 
       function sha256Hex(str) {
         if (!(window.crypto && window.crypto.subtle)) return Promise.resolve(null);
@@ -157,22 +153,6 @@
             return b.toString(16).padStart(2, '0');
           }).join('');
         });
-      }
-
-      function getGateClient() {
-        if (!(window.supabase && window.supabase.createClient)) return null;
-        if (!window.__gateClient) {
-          try {
-            const url = localStorage.getItem('leisure_supabase_url') || DEFAULT_SUPABASE_URL;
-            const key = localStorage.getItem('leisure_supabase_key') || DEFAULT_SUPABASE_KEY;
-            window.__gateClient = window.supabase.createClient(url, key);
-          } catch (e) { return null; }
-        }
-        return window.__gateClient;
-      }
-
-      function getAuthEmail() {
-        try { return (localStorage.getItem(AUTH_EMAIL_KEY) || DEFAULT_AUTH_EMAIL).trim(); } catch (e) { return DEFAULT_AUTH_EMAIL; }
       }
 
       function clearAuthSession() {
@@ -230,22 +210,9 @@
             e.preventDefault();
             const pw = lockInput ? lockInput.value : '';
             if (!pw) return;
-            if (lockBtnEl) { lockBtnEl.disabled = true; lockBtnEl.textContent = 'Checking\u2026'; }
-            function done() { if (lockBtnEl) { lockBtnEl.disabled = false; lockBtnEl.textContent = 'Unlock'; } }
-            function tryLocal() {
-              localPasswordCheck(pw, function (ok) {
-                if (ok) { unlockApp(); } else { showLockError('Incorrect password. Please try again.'); }
-                done();
-              });
-            }
-
-            const client = getGateClient();
-            if (!client) { tryLocal(); return; }
-
-            client.auth.signInWithPassword({ email: getAuthEmail(), password: pw }).then(function (res) {
-              if (res.data && res.data.session) { unlockApp(); done(); }
-              else { tryLocal(); } // not signed in: fall back to local app password
-            }).catch(function () { tryLocal(); }); // network down: offline unlock possible
+            localPasswordCheck(pw, function (ok) {
+              if (ok) { unlockApp(); } else { showLockError('Incorrect password. Please try again.'); }
+            });
           });
         }
 
@@ -259,18 +226,6 @@
           });
         }
 
-        // One-time setup: the shared sign-in email
-        const gateSetupBtn = document.getElementById('gateSetupBtn');
-        if (gateSetupBtn) {
-          gateSetupBtn.addEventListener('click', function () {
-            const em = window.prompt('Shared sign-in email (your Supabase Auth user):', getAuthEmail());
-            if (em && em.trim()) {
-              try { localStorage.setItem(AUTH_EMAIL_KEY, em.trim().toLowerCase()); } catch (e) {}
-              window.alert('Sign-in email saved: ' + em.trim().toLowerCase());
-            }
-          });
-        }
-
         // Change app open password (from Admin panel)
         const saveGatePwBtn = document.getElementById('saveGatePwBtn');
         if (saveGatePwBtn) {
@@ -279,32 +234,14 @@
             const msg = document.getElementById('gatePwUpdateMsg');
             const newPw = inp ? inp.value.trim() : '';
             if (!newPw) return;
-            function showMsg(text, ok) {
-              if (!msg) return;
-              msg.textContent = text;
-              msg.classList.toggle('text-emerald-600', !!ok);
-              msg.classList.toggle('dark:text-emerald-400', !!ok);
-              msg.classList.toggle('text-amber-600', !ok);
-              msg.classList.toggle('dark:text-amber-400', !ok);
-              msg.classList.remove('hidden');
-              setTimeout(function () { msg.classList.add('hidden'); }, 3500);
-            }
             sha256Hex(newPw).then(function (hash) {
               try { localStorage.setItem(GATE_PW_KEY, hash || ('plain:' + newPw)); } catch (e) {}
               if (inp) inp.value = '';
-              const client = getGateClient();
-              if (!client) { showMsg('\u2713 App password updated', true); return; }
-              client.auth.getSession().then(function (res) {
-                const session = res.data && res.data.session;
-                if (session) {
-                  client.auth.updateUser({ password: newPw }).then(function (r) {
-                    if (r.error) showMsg('\u26A0 Saved as app password. Sign-in password unchanged (' + r.error.message + ')', false);
-                    else showMsg('\u2713 App & sign-in password updated', true);
-                  });
-                } else {
-                  showMsg('\u2713 App password updated (sign in with it on next unlock too)', true);
-                }
-              });
+              if (msg) {
+                msg.textContent = '\u2713 App password updated';
+                msg.classList.remove('hidden');
+                setTimeout(function () { msg.classList.add('hidden'); }, 3500);
+              }
             });
           });
         }
@@ -366,6 +303,34 @@
         </button>
       </div>
     </header>
+
+    <!-- Top Tab Navigation Bar -->
+    <nav class="h-14 bg-white/95 dark:bg-[#1E1B24]/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-3 flex items-center justify-around z-10 shrink-0">
+      <button data-nav="feed" class="nav-item flex flex-col items-center text-purple-600 dark:text-purple-400 py-1 transition">
+        <div class="w-12 h-7 rounded-full bg-purple-100 dark:bg-purple-950/60 flex items-center justify-center mb-0.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        </div>
+        <span class="text-[10px] font-bold">Activities</span>
+      </button>
+      <button data-nav="profiles" class="nav-item flex flex-col items-center text-slate-400 dark:text-slate-500 hover:text-purple-600 py-1 transition">
+        <div class="w-12 h-7 rounded-full flex items-center justify-center mb-0.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        </div>
+        <span class="text-[10px] font-medium">Profiles</span>
+      </button>
+      <button data-nav="stats" class="nav-item flex flex-col items-center text-slate-400 dark:text-slate-500 hover:text-purple-600 py-1 transition">
+        <div class="w-12 h-7 rounded-full flex items-center justify-center mb-0.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <span class="text-[10px] font-medium">Insights</span>
+      </button>
+      <button data-nav="messages" class="nav-item flex flex-col items-center text-slate-400 dark:text-slate-500 hover:text-purple-600 py-1 transition">
+        <div class="w-12 h-7 rounded-full flex items-center justify-center mb-0.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        </div>
+        <span class="text-[10px] font-medium">Messages</span>
+      </button>
+    </nav>
 
     <!-- Interactive Views Wrapper -->
     <main class="flex-1 overflow-y-auto px-4 pb-24 hide-scrollbar relative">
@@ -504,57 +469,46 @@
           <div class="flex items-center justify-between mb-2">
             <div>
               <h2 class="text-sm font-bold text-slate-900 dark:text-white">Private Messages</h2>
-              <p class="text-[11px] text-slate-500 dark:text-slate-400">Encrypted access via sign-in 🔐 Visible only to signed-in users</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Sign in here to read &amp; send 🔐</p>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
               <button type="button" id="autoDeleteToggle" title="Automatically delete messages older than 1 month" class="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 transition">🗑 Auto: 1mo</button>
               <span id="msgAuthBadge" class="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">Checking…</span>
             </div>
           </div>
-          <div id="msgProfilePicker" class="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1 mb-2"></div>
-          <div id="messagesList" class="space-y-2.5 max-h-[46vh] overflow-y-auto pr-1 py-1"></div>
-          <form id="messageForm" class="flex gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <input type="text" id="messageInput" autocomplete="off" placeholder="Type a private message..." class="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-full text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
-            <button type="submit" class="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white rounded-full text-xs font-bold shadow-md transition shrink-0">Send</button>
-          </form>
+
+          <!-- In-screen sign-in: unlocks messages (Supabase Auth) -->
+          <div id="msgSignInPanel" class="py-2 space-y-3">
+            <div class="flex flex-col items-center text-center py-2">
+              <div class="w-12 h-12 rounded-3xl bg-purple-50 dark:bg-purple-950/40 text-purple-500 flex items-center justify-center text-xl mb-2">🔒</div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 max-w-[250px]">Messages are private. Sign in with the shared account to read and send them.</p>
+            </div>
+            <input type="email" id="msgEmailInput" autocomplete="username" placeholder="Sign-in email" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
+            <input type="password" id="msgSignInPwInput" autocomplete="current-password" placeholder="Sign-in password" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
+            <div id="msgSignInError" class="hidden text-xs text-rose-500 font-semibold text-center"></div>
+            <button type="button" id="msgSignInBtn" class="w-full py-2.5 bg-purple-600 hover:bg-purple-700 active:scale-[0.98] text-white rounded-2xl font-bold text-xs shadow-md transition">🔓 Show Messages</button>
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 text-center">Stays signed in until you re-lock with the 🔒 button.</p>
+          </div>
+
+          <!-- Chat area (visible after sign-in) -->
+          <div id="msgChatArea" class="hidden">
+            <div id="msgWhoAmI" class="text-[11px] font-bold text-slate-500 dark:text-slate-400 pb-1 mb-2"></div>
+            <div id="messagesList" class="space-y-2.5 max-h-[52vh] overflow-y-auto pr-1 py-1"></div>
+            <form id="messageForm" class="flex gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <input type="text" id="messageInput" autocomplete="off" placeholder="Type a private message..." class="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-full text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 focus:border-purple-500 focus:outline-none transition">
+              <button type="submit" class="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white rounded-full text-xs font-bold shadow-md transition shrink-0">Send</button>
+            </form>
+          </div>
         </div>
       </section>
     </main>
 
     <!-- Floating Action Button (FAB) -->
-    <button id="fabAddActivityBtn" aria-label="Add activity" class="absolute right-5 bottom-20 w-14 h-14 bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 text-white rounded-2xl shadow-m3-fab flex items-center justify-center transition-all z-20">
+    <button id="fabAddActivityBtn" aria-label="Add activity" class="absolute right-5 bottom-6 w-14 h-14 bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 text-white rounded-2xl shadow-m3-fab flex items-center justify-center transition-all z-20">
       <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
       </svg>
     </button>
-
-    <!-- Android Bottom Navigation Bar -->
-    <nav class="h-16 bg-white/95 dark:bg-[#1E1B24]/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 px-6 flex items-center justify-around z-10 shrink-0">
-      <button data-nav="feed" class="nav-item flex flex-col items-center text-purple-600 dark:text-purple-400 py-1 transition">
-        <div class="w-12 h-7 rounded-full bg-purple-100 dark:bg-purple-950/60 flex items-center justify-center mb-0.5">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-        </div>
-        <span class="text-[10px] font-bold">Activities</span>
-      </button>
-      <button data-nav="profiles" class="nav-item flex flex-col items-center text-slate-400 dark:text-slate-500 hover:text-purple-600 py-1 transition">
-        <div class="w-12 h-7 rounded-full flex items-center justify-center mb-0.5">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-        </div>
-        <span class="text-[10px] font-medium">Profiles</span>
-      </button>
-      <button data-nav="stats" class="nav-item flex flex-col items-center text-slate-400 dark:text-slate-500 hover:text-purple-600 py-1 transition">
-        <div class="w-12 h-7 rounded-full flex items-center justify-center mb-0.5">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-        </div>
-        <span class="text-[10px] font-medium">Insights</span>
-      </button>
-      <button data-nav="messages" class="nav-item flex flex-col items-center text-slate-400 dark:text-slate-500 hover:text-purple-600 py-1 transition">
-        <div class="w-12 h-7 rounded-full flex items-center justify-center mb-0.5">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-        </div>
-        <span class="text-[10px] font-medium">Messages</span>
-      </button>
-    </nav>
 
     <!-- MODAL / BOTTOM SHEET: ADD ACTIVITY -->
     <div id="addActivityModal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-end justify-center hidden animate-fade-in">
@@ -1695,7 +1649,6 @@
         if (vMessages) vMessages.classList.remove('hidden');
         if (topSubtext) topSubtext.textContent = 'Private Messages';
         if (fab) fab.classList.add('hidden');
-        renderMsgProfilePicker();
         fetchMessages();
       }
 
@@ -1797,7 +1750,6 @@
 
     // ============ PRIVATE MESSAGES (Supabase Auth + RLS protected) ============
     let messages = [];
-    let selectedMsgProfileId = null;
     let messagesRealtimeOn = false;
 
     function escapeMsg(s) {
@@ -1807,13 +1759,6 @@
     function msgTime(iso) {
       const d = new Date(iso);
       return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    function msgSessionReady() {
-      if (!supabaseClient) return Promise.resolve(false);
-      return supabaseClient.auth.getSession()
-        .then(res => !!(res.data && res.data.session))
-        .catch(() => false);
     }
 
     // Auto-delete: messages older than 1 month are purged when the tab loads
@@ -1856,42 +1801,15 @@
       if (badge) { badge.textContent = text; badge.className = 'text-[10px] font-bold px-2 py-1 rounded-full ' + cls; }
     }
 
-    function renderMsgProfilePicker() {
-      const container = document.getElementById('msgProfilePicker');
-      if (!container) return;
-      if (!profiles.length) {
-        container.innerHTML = '<span class="text-[11px] text-slate-500 dark:text-slate-400">Create a profile in the Profiles tab first</span>';
-        return;
-      }
-      if (!profiles.some(p => p.id === selectedMsgProfileId)) selectedMsgProfileId = profiles[0].id;
-      container.innerHTML = '<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide shrink-0">Sending as</span>' + profiles.map(p => {
-        const isSel = p.id === selectedMsgProfileId;
-        const chipCls = isSel
-          ? 'bg-purple-600 text-white border-purple-600'
-          : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700';
-        return `<button type="button" data-msg-profile="${p.id}" class="px-3 py-1.5 rounded-full text-[11px] font-bold border transition shrink-0 ${chipCls}">${escapeMsg(p.avatarText || (p.name ? p.name.charAt(0) : '?'))} ${escapeMsg(p.name)}</button>`;
-      }).join('');
-      container.querySelectorAll('[data-msg-profile]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          selectedMsgProfileId = btn.getAttribute('data-msg-profile');
-          renderMsgProfilePicker();
-        });
-      });
-    }
-
     function renderMessages() {
       const container = document.getElementById('messagesList');
       if (!container) return;
-      if (!profiles.length) {
-        container.innerHTML = '<div class="py-8 text-center text-xs text-slate-500 dark:text-slate-400">👤 Add a profile first to start chatting.</div>';
-        return;
-      }
       if (!messages.length) {
         container.innerHTML = '<div class="py-8 text-center text-xs text-slate-500 dark:text-slate-400">💬 No messages yet. Say something nice!</div>';
         return;
       }
-      if (!profiles.some(p => p.id === selectedMsgProfileId)) selectedMsgProfileId = profiles[0].id;
 
+      const myKey = msgMe ? msgMe.key : '';
       const sorted = [...messages].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
       let lastDay = '';
       container.innerHTML = sorted.map(m => {
@@ -1905,7 +1823,7 @@
         }
         const text = escapeMsg(m.text).replace(/\n/g, '<br>');
         const time = msgTime(m.createdAt);
-        if (m.profileId === selectedMsgProfileId) {
+        if (m.profileId === myKey) {
           html += `
             <div class="flex justify-end">
               <div class="max-w-[78%] bg-gradient-to-tr from-purple-600 to-indigo-600 text-white rounded-2xl rounded-br-md px-3.5 py-2 shadow-sm">
@@ -1914,10 +1832,10 @@
               </div>
             </div>`;
         } else {
-          const prof = profiles.find(p => p.id === m.profileId);
-          const col = colorClasses[(prof && prof.color)] || colorClasses.purple;
-          const avatar = escapeMsg(prof ? (prof.avatarText || prof.name.charAt(0)) : '?');
-          const name = escapeMsg(prof ? prof.name : 'Unknown');
+          const sender = msgUserByKey(m.profileId);
+          const col = colorClasses[sender.color] || colorClasses.purple;
+          const avatar = escapeMsg(sender.name.charAt(0));
+          const name = escapeMsg(sender.name);
           html += `
             <div class="flex items-end gap-2">
               <div class="w-7 h-7 rounded-full bg-gradient-to-tr ${col.gradient} text-white text-[11px] font-bold flex items-center justify-center shrink-0">${avatar}</div>
@@ -1933,24 +1851,103 @@
       container.scrollTop = container.scrollHeight;
     }
 
+    // In-screen message sign-in state
+    const MSG_AUTH_EMAIL_KEY = 'leisure_auth_email';
+
+    // Fixed chat participants: identity is derived from the signed-in account email
+    const MSG_USERS = {
+      'praathviraj@gmail.com': { key: 'prathvi', name: 'Prathvi', color: 'purple' },
+      'shwetas200020@gmail.com': { key: 'shwetee', name: 'Shwetee', color: 'rose' }
+    };
+    let msgMe = null; // current signed-in user: { key, name, color }
+
+    function msgUserFromEmail(email) {
+      const em = (email || '').toLowerCase();
+      if (MSG_USERS[em]) return MSG_USERS[em];
+      const local = em.split('@')[0] || 'friend';
+      return { key: local, name: local.charAt(0).toUpperCase() + local.slice(1), color: 'sky' };
+    }
+
+    function msgUserByKey(key) {
+      const found = Object.keys(MSG_USERS).map(k => MSG_USERS[k]).find(u => u.key === key);
+      if (found) return found;
+      return { key: key || 'unknown', name: (key || 'Unknown').charAt(0).toUpperCase() + (key || 'Unknown').slice(1), color: 'sky' };
+    }
+
+    async function msgSession() {
+      if (!supabaseClient) return null;
+      try {
+        const res = await supabaseClient.auth.getSession();
+        return (res.data && res.data.session) || null;
+      } catch (e) { return null; }
+    }
+
+    function setMsgChatVisible(visible) {
+      const panel = document.getElementById('msgSignInPanel');
+      const chat = document.getElementById('msgChatArea');
+      if (panel) panel.classList.toggle('hidden', visible);
+      if (chat) chat.classList.toggle('hidden', !visible);
+    }
+
+    async function msgSignIn() {
+      const btn = document.getElementById('msgSignInBtn');
+      const emInp = document.getElementById('msgEmailInput');
+      const pwInp = document.getElementById('msgSignInPwInput');
+      const err = document.getElementById('msgSignInError');
+      if (!supabaseClient) { showToast('Cloud connection needed for messages', '☁️'); return; }
+      const email = ((emInp && emInp.value) || '').trim().toLowerCase();
+      const pw = (pwInp && pwInp.value) || '';
+      if (!email || !pw) {
+        if (err) { err.textContent = 'Enter your email and password.'; err.classList.remove('hidden'); }
+        return;
+      }
+      if (btn) { btn.disabled = true; btn.textContent = 'Signing in\u2026'; }
+      try {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password: pw });
+        if (error) {
+          if (err) {
+            err.textContent = /invalid/i.test(error.message || '') ? 'Invalid email or password.' : error.message;
+            err.classList.remove('hidden');
+          }
+        } else {
+          try { localStorage.setItem(MSG_AUTH_EMAIL_KEY, email); } catch (e) {}
+          if (err) err.classList.add('hidden');
+          if (pwInp) pwInp.value = '';
+          showToast('Signed in - messages unlocked', '🔓');
+          await fetchMessages();
+        }
+      } catch (e) {
+        if (err) { err.textContent = 'Could not reach server. Try again.'; err.classList.remove('hidden'); }
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDD13 Show Messages'; }
+      }
+    }
+
     async function fetchMessages() {
-      msgSessionReady().then(signedIn => {
-        setMsgBadge(signedIn ? 'Signed in 🟢' : 'Locked 🔒',
-          signedIn ? 'text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
-                   : 'text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300');
-      });
       if (!supabaseClient) {
-        const container = document.getElementById('messagesList');
-        if (container) container.innerHTML = '<div class="py-8 text-center text-xs text-slate-500 dark:text-slate-400">☁️ Connect cloud sync to use messages.</div>';
+        setMsgBadge('Offline ⚪', 'text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400');
+        setMsgChatVisible(false);
         return;
       }
-      const signedIn = await msgSessionReady();
+      const session = await msgSession();
+      const signedIn = !!session;
+      setMsgBadge(signedIn ? 'Signed in 🟢' : 'Locked 🔒',
+        signedIn ? 'text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                 : 'text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300');
+      setMsgChatVisible(signedIn);
       if (!signedIn) {
+        msgMe = null;
         messages = [];
-        const container = document.getElementById('messagesList');
-        if (container) container.innerHTML = '<div class="py-8 text-center text-xs text-slate-500 dark:text-slate-400">🔒 Messages are private.<br>Re-open the app with the <span class="font-bold">sign-in password</span> to chat.</div>';
+        try {
+          const saved = localStorage.getItem(MSG_AUTH_EMAIL_KEY);
+          const em = document.getElementById('msgEmailInput');
+          if (saved && em && !em.value) em.value = saved;
+        } catch (e) {}
         return;
       }
+      msgMe = msgUserFromEmail(session.user && session.user.email);
+      const who = document.getElementById('msgWhoAmI');
+      if (who) who.innerHTML = 'Chatting as <span class="text-purple-600 dark:text-purple-400">' + escapeMsg(msgMe.name) + '</span> \u2728';
       try {
         await purgeOldMessages();
         const { data, error } = await supabaseClient.from('messages').select('*').order('createdat', { ascending: true }).limit(500);
@@ -1968,11 +1965,11 @@
       const text = inp ? inp.value.trim() : '';
       if (!text) return;
       if (!supabaseClient) { showToast('Cloud connection needed to send messages', '☁️'); return; }
-      if (!selectedMsgProfileId) { showToast('Create a profile first', '👤'); return; }
-      const signedIn = await msgSessionReady();
-      if (!signedIn) { showToast('Unlock with the sign-in password to send messages', '🔒'); return; }
+      const session = await msgSession();
+      if (!session) { showToast('Sign in on the Messages screen to send messages', '🔒'); return; }
+      msgMe = msgUserFromEmail(session.user && session.user.email);
 
-      const temp = { id: 'msg-' + Date.now() + '-' + Math.floor(Math.random() * 10000), profileId: selectedMsgProfileId, text: text, createdAt: new Date().toISOString() };
+      const temp = { id: 'msg-' + Date.now() + '-' + Math.floor(Math.random() * 10000), profileId: msgMe.key, text: text, createdAt: new Date().toISOString() };
       messages.push(temp);
       renderMessages();
       if (inp) inp.value = '';
@@ -1989,7 +1986,10 @@
     function initMessages() {
       const form = document.getElementById('messageForm');
       if (form) form.addEventListener('submit', e => { e.preventDefault(); sendMessage(); });
-      renderMsgProfilePicker();
+      const signInBtn = document.getElementById('msgSignInBtn');
+      if (signInBtn) signInBtn.addEventListener('click', msgSignIn);
+      const signInPw = document.getElementById('msgSignInPwInput');
+      if (signInPw) signInPw.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); msgSignIn(); } });
       renderAutoDeleteToggle();
       const autoDelBtn = document.getElementById('autoDeleteToggle');
       if (autoDelBtn) {
